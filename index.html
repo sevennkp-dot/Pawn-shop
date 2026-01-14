@@ -135,7 +135,7 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 </select>
 <p>ค่าบริการ: <span id="fee">0</span> บาท</p>
 <p>รวมยอดชำระ: <span id="total">0</span> บาท</p>
-<label>วันที่ปัจจุบัน</label><input type="date" id="startDate" />
+<label>วันที่ปัจจุบัน</label><input type="date" id="startDate" readonly />
 <p>วันครบกำหนด: <span id="dueDate"></span></p>
 <button onclick="printContract()">พิมพ์สัญญา</button>
 <button onclick="window.print()">พิมพ์ใบนัดชำระ</button>
@@ -222,6 +222,8 @@ function genBill() {
  return 'B' + Date.now();
 }
 function approve(){
+ const today = new Date().toISOString().split('T')[0];
+ document.getElementById('startDate').value = today;
  document.getElementById('approveStatus').innerText='สถานะ: อนุมัติแล้ว';
  const type=document.getElementById('approveType').value;
  if(type==='buy'){
@@ -234,6 +236,10 @@ function approve(){
  }
 }
 function calcFee(){
+ const startInput = document.getElementById('startDate');
+ if(!startInput.value){
+   startInput.value = new Date().toISOString().split('T')[0];
+ }
  const price=Number(document.getElementById('pawnPrice').value||0);
  const term=document.getElementById('term').value;
  let rate=0;
