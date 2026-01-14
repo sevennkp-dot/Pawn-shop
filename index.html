@@ -1,198 +1,241 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <title>ระบบรับซื้อ / รับฝาก</title>
-  <style>
-    body { font-family: Tahoma, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
-    h1,h2 { color:#333; }
-    .card { background:#fff; padding:20px; margin-bottom:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.1); }
-    label { display:block; margin-top:10px; font-weight:bold; }
-    input, select, textarea { width:100%; padding:8px; margin-top:5px; }
-    button { margin-top:15px; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; }
-    .primary { background:#2563eb; color:#fff; }
-    .secondary { background:#16a34a; color:#fff; }
-    .warning { background:#f59e0b; color:#fff; }
-    .status { font-weight:bold; padding:10px; }
-    .approved { color:green; }
-    .pending { color:orange; }
-  </style>
+<meta charset="UTF-8" />
+<title>ระบบรับซื้อ / รับฝาก</title>
+<style>
+body { font-family: Tahoma, Arial, sans-serif; background:#f5f5f5; }
+.container { max-width:1200px; margin:auto; background:#fff; padding:20px; }
+h1,h2,h3 { margin-top:20px; }
+label { display:block; margin-top:10px; }
+input, select, textarea { width:100%; padding:6px; margin-top:4px; }
+textarea { height:80px; }
+.section { border:1px solid #ccc; padding:15px; margin-top:20px; }
+.hidden { display:none; }
+button { padding:8px 16px; margin-top:15px; cursor:pointer; }
+.status { font-weight:bold; }
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+@media print {
+ body { background:#fff; }
+ .no-print { display:none; }
+ .a4 { width:210mm; min-height:297mm; margin:0; padding:20mm; box-shadow:none; }
+}
+
+.a4 {
+ font-family:'Sarabun', serif;
+ width:210mm;
+ min-height:297mm;
+ margin:20px auto;
+ padding:20mm;
+ background:#fff;
+ color:#000;
+}
+.header { display:flex; justify-content:space-between; align-items:flex-start; }
+.logo { width:120px; height:60px; border:1px solid #000; text-align:center; font-size:12px; }
+.title { text-align:center; font-size:20pt; font-weight:700; margin-top:10px; }
+.top-right { text-align:right; font-size:12pt; }
+.dotted { border-bottom:1px dashed #000; display:inline-block; min-width:200px; }
+.section-title { font-weight:700; margin-top:12px; }
+.qr { position:absolute; bottom:20mm; right:20mm; text-align:center; font-size:10pt; }
+.signature { margin-top:25px; display:flex; justify-content:space-between; }
+.signature div { width:45%; text-align:center; }
+.witness div { border-bottom:1px dashed #000; margin-top:6px; }
+</style>
 </head>
 <body>
+<div class="container">
+<h1>เว็บแอพระบบรับซื้อ / รับฝาก</h1>
 
-<h1>หน้าเลือกการทำงาน</h1>
+<!-- หน้าเลือกการทำงาน -->
+<div class="section">
+<h2>1. ขออนุมัติ</h2>
+<label>ถ่ายรูปสินค้า (5-6 รูป)</label>
+<input type="file" multiple accept="image/*" />
 
-<div class="card">
-  <h2>ขออนุมัติจากผู้ดูแลระบบ</h2>
+<label>ประเภทสินค้า</label><input />
+<label>รุ่น</label><input />
+<label>ยี่ห้อ</label><input />
+<label>ตำหนิ</label><textarea></textarea>
 
-  <label>รับซื้อหรือฝาก</label>
-  <select id="dealType">
-    <option value="">-- เลือก --</option>
-    <option value="buy">รับซื้อ</option>
-    <option value="pawn">รับฝาก</option>
-  </select>
+<label>เลือกรูปแบบ</label>
+<select id="approveType">
+<option value="">-- เลือก --</option>
+<option value="buy">รับซื้อ</option>
+<option value="pawn">ฝาก</option>
+</select>
 
-  <button class="primary" onclick="approve()">ส่งขออนุมัติ</button>
-  <div id="approvalStatus" class="status pending">สถานะ: รออนุมัติ</div>
+<label>อุปกรณ์ที่มี (เลือกได้หลายอัน)</label>
+<div>
+<label><input type="checkbox"> หัวโดด</label>
+<label><input type="checkbox"> ครบกล่อง</label>
+<label><input type="checkbox"> สาย</label>
+<label><input type="checkbox"> กระเป๋า</label>
+<label><input type="checkbox"> กล่อง</label>
+<label><input type="checkbox"> เครื่อง</label>
+<label><input type="checkbox"> รีโมท</label>
+<label><input type="checkbox"> เพิ่มเติม</label>
 </div>
 
-<!-- ================= รับซื้อ ================= -->
-<div class="card" id="buySection" style="display:none;">
-  <h2>รับซื้อ (เมื่ออนุมัติ)</h2>
+<label>ราคาที่อนุมัติ</label><input type="number" />
 
-  <label>วันที่ทำการซื้อขาย</label>
-  <input type="date" id="buyDate">
-
-  <label>เลขที่บิล</label>
-  <input type="text" id="buyBill" readonly>
-
-  <label>ชื่อ-นามสกุล</label>
-  <input type="text" id="buyName">
-
-  <label>ประเภทสินค้า</label>
-  <input type="text" id="buyType">
-
-  <label>รุ่น</label>
-  <input type="text" id="buyModel">
-
-  <label>ยี่ห้อ</label>
-  <input type="text" id="buyBrand">
-
-  <label>Serial Number</label>
-  <input type="text" id="buySerial">
-
-  <label>IMEI / Part</label>
-  <input type="text" id="buyImei">
-
-  <label>สุขภาพแบต (%)</label>
-  <input type="number" id="buyBattery">
-
-  <label>ตำหนิ / บันทึกเพิ่มเติม</label>
-  <textarea id="buyNote"></textarea>
-
-  <label>รูปถ่ายจริง (6 รูป)</label>
-  <input type="file" multiple accept="image/*">
-
-  <button class="secondary" onclick="printReceipt()">พิมพ์ใบเสร็จ</button>
+<button onclick="approve()">ส่งขออนุมัติ</button>
+<p class="status" id="approveStatus">สถานะ: รออนุมัติ</p>
 </div>
 
-<!-- ================= รับฝาก ================= -->
-<div class="card" id="pawnSection" style="display:none;">
-  <h2>รับฝาก (เมื่ออนุมัติ)</h2>
+<!-- รับซื้อ -->
+<div class="section hidden" id="buySection">
+<h2>1. รับซื้อ</h2>
+<label>วันที่ทำการซื้อขาย</label><input type="date" />
+<label>เลขที่บิล</label><input id="buyBill" readonly />
+<label>ชื่อ-นามสกุล</label><input />
+<label>ประเภทสินค้า</label><input />
+<label>รุ่น</label><input />
+<label>ยี่ห้อ</label><input />
+<label>Serial Number</label><input />
+<label>IMEI / Part</label><input />
+<label>สุขภาพแบต</label><input />
+<label>ตำหนิ / บันทึก</label><textarea></textarea>
+<label>รูปถ่ายจริง 6 รูป</label><input type="file" multiple accept="image/*" />
+<button onclick="window.print()">พิมพ์ใบเสร็จ</button>
+</div>
 
-  <label>เลขที่บิล</label>
-  <input type="text" id="pawnBill" readonly>
+<!-- ฝาก -->
+<div class="section hidden" id="pawnSection">
+<h2>2. ฝาก</h2>
+<label>เลขที่บิล</label><input id="pawnBill" readonly />
+<label>ชื่อ-นามสกุล</label><input />
+<label>ที่อยู่</label><textarea></textarea>
+<label>เบอร์โทร</label><input />
+<label>ประเภทสินค้า</label><input />
+<label>รุ่น</label><input />
+<label>ยี่ห้อ</label><input />
+<label>Serial Number</label><input />
+<label>IMEI / Part</label><input />
+<label>สุขภาพแบต</label><input />
+<label>ตำหนิ / บันทึก</label><textarea></textarea>
+<label>รูปถ่ายจริง 6 รูป</label><input type="file" multiple accept="image/*" />
+<label>ราคาขายฝาก</label><input type="number" id="pawnPrice" />
+<label>ระยะเวลา</label>
+<select id="term" onchange="calcFee()">
+<option value="">-- เลือก --</option>
+<option value="20">20 วัน (7%)</option>
+<option value="15">15 วัน (10%)</option>
+</select>
+<p>ค่าบริการ: <span id="fee">0</span> บาท</p>
+<p>รวมยอดชำระ: <span id="total">0</span> บาท</p>
+<label>วันที่ปัจจุบัน</label><input type="date" id="startDate" />
+<p>วันครบกำหนด: <span id="dueDate"></span></p>
+<button onclick="window.print()">พิมพ์สัญญา</button>
+<button onclick="window.print()">พิมพ์ใบนัดชำระ</button>
+</div>
 
-  <label>ชื่อ-นามสกุล</label>
-  <input type="text" id="pawnName">
+<!-- เพิ่มเงินต้น -->
+<div class="section">
+<h2>4. เพิ่มเงินต้น</h2>
+<label>ค้นหาด้วยชื่อ</label><input />
+<label>ค้นหาด้วยเลขที่บิล</label><input />
+<label>เลือกสัญญา</label><select><option>-- เลือก --</option></select>
+<label>ขออนุมัติเพิ่มวงเงิน</label><input type="number" />
+<label>บันทึกเพิ่มเติม</label><textarea></textarea>
+<button>ส่งขออนุมัติ</button>
+</div>
 
-  <label>ที่อยู่</label>
-  <textarea id="pawnAddress"></textarea>
+<!-- หน้าเอกสารสัญญาฝาก A4 -->
+<div class="a4">
+  <div class="header">
+    <div class="logo">โลโก้ร้าน</div>
+    <div class="top-right">
+      เลขที่สัญญา: <span class="dotted"></span><br>
+      วันที่ทำสัญญา: <span class="dotted"></span>
+    </div>
+  </div>
 
-  <label>เบอร์โทร</label>
-  <input type="tel" id="pawnPhone">
+  <div class="title">ใบรับซื้อขายฝาก</div>
 
-  <label>ประเภทสินค้า</label>
-  <input type="text" id="pawnType">
+  <p class="section-title">ข้อมูลร้านรับฝาก</p>
+  ชื่อร้าน <span class="dotted" style="width:300px"></span><br>
+  ที่อยู่ <span class="dotted" style="width:400px"></span><br>
+  โทรศัพท์ <span class="dotted"></span> แฟกซ์ <span class="dotted"></span>
 
-  <label>รุ่น</label>
-  <input type="text" id="pawnModel">
+  <p class="section-title">ข้อมูลผู้ขายฝาก</p>
+  ชื่อ–นามสกุล <span class="dotted" style="width:300px"></span><br>
+  เลขบัตรประชาชน <span class="dotted" style="width:300px"></span><br>
+  ที่อยู่ตามบัตร <span class="dotted" style="width:450px"></span>
 
-  <label>ยี่ห้อ</label>
-  <input type="text" id="pawnBrand">
+  <p class="section-title">รายละเอียดทรัพย์สินที่นำมาฝาก</p>
+  ประเภทสินค้า <span class="dotted"></span> ยี่ห้อ <span class="dotted"></span> รุ่น <span class="dotted"></span><br>
+  Serial / IMEI / Part <span class="dotted" style="width:300px"></span><br>
+  สภาพสินค้า <span class="dotted" style="width:400px"></span><br>
+  อุปกรณ์ที่ได้รับ <span class="dotted" style="width:400px"></span>
 
-  <label>Serial Number</label>
-  <input type="text" id="pawnSerial">
+  <p class="section-title">รายละเอียดการทำสัญญาฝาก</p>
+  จำนวนเงินที่รับฝาก <span class="dotted"></span> บาท ( <span class="dotted" style="width:300px"></span> )<br>
+  กำหนดวันไถ่ถอน <span class="dotted"></span><br>
+  ค่าบริการ <span class="dotted"></span> บาท รวมยอดชำระ <span class="dotted"></span> บาท
 
-  <label>IMEI / Part</label>
-  <input type="text" id="pawnImei">
+  <p class="section-title">ข้อสัญญาและเงื่อนไข</p>
+  <p style="font-size:12pt; line-height:1.5">
+    ผู้ขายฝากรับรองว่าทรัพย์ที่นำมาฝากเป็นกรรมสิทธิ์โดยชอบของตน หากไม่มาไถ่ถอนภายในกำหนด ถือว่าทรัพย์ตกเป็นของร้านโดยชอบ ผู้ขายฝากยอมรับเงื่อนไขทุกประการ
+  </p>
 
-  <label>สุขภาพแบต (%)</label>
-  <input type="number" id="pawnBattery">
+  <p class="section-title">หมายเหตุ</p>
+  กรณีทรัพย์สูญหายจากเหตุสุดวิสัย ร้านไม่ต้องรับผิดชอบ
 
-  <label>ตำหนิ / บันทึกเพิ่มเติม</label>
-  <textarea id="pawnNote"></textarea>
+  <div class="signature">
+    <div>
+      <div class="dotted" style="width:100%"></div>
+      (ผู้ขายฝาก)
+    </div>
+    <div>
+      <div class="dotted" style="width:100%"></div>
+      (ผู้รับฝาก)
+    </div>
+  </div>
 
-  <label>รูปถ่ายจริง (6 รูป)</label>
-  <input type="file" multiple accept="image/*">
+  <p class="section-title">พยาน</p>
+  <div class="witness">
+    <div></div><div></div><div></div><div></div>
+  </div>
 
-  <label>ราคาขายฝาก</label>
-  <input type="number" id="pawnPrice" oninput="calculateFee()">
-
-  <label>ระยะเวลาชำระ</label>
-  <select id="term" onchange="calculateFee()">
-    <option value="">-- เลือก --</option>
-    <option value="20">20 วัน (ค่าบริการ 7%)</option>
-    <option value="15">15 วัน (ค่าบริการ 10%)</option>
-  </select>
-
-  <div class="status" id="feeResult">ค่าบริการ: -</div>
-  <div class="status" id="dueDate">วันครบกำหนด: -</div>
-
-  <button class="secondary" onclick="printContract()">พิมพ์สัญญา</button>
-  <button class="warning" onclick="printAppointment()">พิมพ์ใบนัดชำระ</button>
+  <div class="qr">
+    QR Code<br>
+    สำหรับตรวจสอบสัญญา / ชำระเงิน
+  </div>
 </div>
 
 <script>
-function randomBill() {
-  return 'B' + Date.now() + Math.floor(Math.random() * 100);
+function genBill() {
+ return 'B' + Date.now();
 }
-
-function approve() {
-  const type = document.getElementById('dealType').value;
-  document.getElementById('approvalStatus').innerText = 'สถานะ: อนุมัติแล้ว';
-  document.getElementById('approvalStatus').className = 'status approved';
-
-  if (type === 'buy') {
-    document.getElementById('buySection').style.display = 'block';
-    document.getElementById('buyBill').value = randomBill();
-  }
-  if (type === 'pawn') {
-    document.getElementById('pawnSection').style.display = 'block';
-    document.getElementById('pawnBill').value = randomBill();
-  }
+function approve(){
+ document.getElementById('approveStatus').innerText='สถานะ: อนุมัติแล้ว';
+ const type=document.getElementById('approveType').value;
+ if(type==='buy'){
+  document.getElementById('buySection').classList.remove('hidden');
+  document.getElementById('buyBill').value=genBill();
+ }
+ if(type==='pawn'){
+  document.getElementById('pawnSection').classList.remove('hidden');
+  document.getElementById('pawnBill').value=genBill();
+ }
 }
-
-function calculateFee() {
-  const price = Number(document.getElementById('pawnPrice').value || 0);
-  const term = document.getElementById('term').value;
-  let rate = 0;
-  if (term === '20') rate = 0.07;
-  if (term === '15') rate = 0.10;
-
-  const fee = price * rate;
-  document.getElementById('feeResult').innerText = 'ค่าบริการ: ' + fee.toFixed(2) + ' บาท';
-
-  if (term) {
-    const d = new Date();
-    d.setDate(d.getDate() + Number(term));
-    document.getElementById('dueDate').innerText = 'วันครบกำหนด: ' + d.toLocaleDateString('th-TH');
-  } else {
-    document.getElementById('dueDate').innerText = 'วันครบกำหนด: -';
-  }
-}
-
-function printContract() {
-  const win = window.open('', '_blank');
-  if (!win) return alert('กรุณาอนุญาต popup');
-  win.document.write('<h1>สัญญาขายฝาก</h1><p>เลขที่บิล: ' + document.getElementById('pawnBill').value + '</p>');
-  win.print();
-}
-
-function printAppointment() {
-  const win = window.open('', '_blank');
-  if (!win) return alert('กรุณาอนุญาต popup');
-  win.document.write('<h2>ใบนัดชำระ</h2><p>' + document.getElementById('dueDate').innerText + '</p>');
-  win.print();
-}
-
-function printReceipt() {
-  const win = window.open('', '_blank');
-  if (!win) return alert('กรุณาอนุญาต popup');
-  win.document.write('<h2>ใบเสร็จรับเงิน</h2><p>เลขที่บิล: ' + document.getElementById('buyBill').value + '</p>');
-  win.print();
+function calcFee(){
+ const price=Number(document.getElementById('pawnPrice').value||0);
+ const term=document.getElementById('term').value;
+ let rate=0;
+ if(term==20) rate=0.07;
+ if(term==15) rate=0.10;
+ const fee=price*rate;
+ document.getElementById('fee').innerText=fee.toFixed(2);
+ document.getElementById('total').innerText=(price+fee).toFixed(2);
+ const start=new Date(document.getElementById('startDate').value);
+ if(start && term){
+  const due=new Date(start);
+  due.setDate(due.getDate()+Number(term));
+  document.getElementById('dueDate').innerText=due.toLocaleDateString('th-TH');
+ }
 }
 </script>
-
 </body>
 </html>
