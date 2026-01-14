@@ -14,8 +14,17 @@ button{margin-top:15px;padding:10px 20px;border:none;border-radius:6px;backgroun
 button.secondary{background:#6c757d}
 .status{font-weight:bold}
 .approved{color:green}
-pending{color:orange}
+.pending{color:orange}
 .hidden{display:none}
+
+@media print{
+ body *{visibility:hidden}
+ #receipt, #receipt *{visibility:visible}
+ #receipt{position:absolute;left:0;top:0;width:100%}
+}
+#receipt{font-size:14px}
+#receipt h2{text-align:center;margin-bottom:5px}
+#receipt .shop{text-align:center;font-size:13px}
 </style>
 </head>
 <body>
@@ -45,122 +54,83 @@ pending{color:orange}
 <option value="pawn">ฝาก</option>
 </select>
 
-<label>อุปกรณ์ที่มี (เลือกได้หลายรายการ)</label>
-<div class="checkbox-group">
-<label><input type="checkbox"> หัวโดด</label>
-<label><input type="checkbox"> ครบกล่อง</label>
-<label><input type="checkbox"> สาย</label>
-<label><input type="checkbox"> กระเป๋า</label>
-<label><input type="checkbox"> กล่อง</label>
-<label><input type="checkbox"> เครื่อง</label>
-<label><input type="checkbox"> รีโมท</label>
-<label><input type="checkbox"> เพิ่มเติม</label>
-</div>
-
 <label>ราคาที่อนุมัติ</label>
-<input type="number">
+<input type="number" id="approvedPrice">
 
 <button onclick="approve()">ส่งขออนุมัติ</button>
 <p id="status" class="status pending">สถานะ: รออนุมัติ</p>
 </section>
 
 <section id="buySection" class="hidden">
-<h2>1. รับซื้อ (เมื่ออนุมัติ)</h2>
+<h2>รับซื้อ</h2>
 <label>วันที่ทำการซื้อขาย</label>
-<input type="date">
+<input type="date" id="buyDate">
 <label>เลขที่บิล</label>
 <input type="text" id="buyBill" readonly>
 <label>ชื่อ-นามสกุล</label>
-<input type="text">
+<input type="text" id="custName">
 <label>ประเภทสินค้า</label>
-<input type="text">
+<input type="text" id="prodType">
 <label>รุ่น</label>
-<input type="text">
+<input type="text" id="model">
 <label>ยี่ห้อ</label>
-<input type="text">
-<label>Serial Number</label>
-<input type="text">
-<label>IMEI / Part</label>
-<input type="text">
+<input type="text" id="brand">
+<label>Serial / IMEI</label>
+<input type="text" id="serial">
 <label>สุขภาพแบต (%)</label>
-<input type="number">
-<label>ตำหนิ / บันทึกเพิ่มเติม</label>
-<textarea></textarea>
-<label>รูปถ่ายจริง 6 รูป</label>
-<input type="file" multiple accept="image/*">
-<button>พิมพ์ใบเสร็จ</button>
-</section>
+<input type="number" id="battery">
+<label>หมายเหตุ</label>
+<textarea id="note"></textarea>
+<button onclick="printReceipt()">พิมพ์ใบเสร็จ</button>
 
-<section id="pawnSection" class="hidden">
-<h2>2. ฝาก (เมื่ออนุมัติ)</h2>
-<label>เลขที่บิล</label>
-<input type="text" id="pawnBill" readonly>
-<label>ชื่อ-นามสกุล</label>
-<input type="text">
-<label>ประเภทสินค้า</label>
-<input type="text">
-<label>รุ่น</label>
-<input type="text">
-<label>ยี่ห้อ</label>
-<input type="text">
-<label>Serial Number</label>
-<input type="text">
-<label>IMEI / Part</label>
-<input type="text">
-<label>สุขภาพแบต (%)</label>
-<input type="number">
-<label>ตำหนิ / บันทึกเพิ่มเติม</label>
-<textarea></textarea>
-<label>รูปถ่ายจริง 6 รูป</label>
-<input type="file" multiple accept="image/*">
-<label>ราคาขายฝาก</label>
-<input type="number" id="pawnPrice">
-<label>ระยะเวลาชำระ</label>
-<select id="term" onchange="calcFee()">
-<option value="20">20 วัน (7%)</option>
-<option value="15">15 วัน (10%)</option>
-</select>
-<p>ค่าบริการ: <span id="fee">0</span> บาท</p>
-<p>วันครบกำหนด: <span id="dueDate">-</span></p>
-<button>พิมพ์ใบนัดชำระ</button>
-</section>
-
-<section>
-<h2>4. เพิ่มเงินต้น</h2>
-<label>ค้นหาด้วยชื่อ</label>
-<input type="text">
-<label>ค้นหาด้วยเลขที่บิล</label>
-<input type="text">
-<label>เลือกสัญญา</label>
-<select><option>สัญญา #1</option></select>
-<label>ขออนุมัติเพิ่มวงเงิน</label>
-<input type="number">
-<label>บันทึกเพิ่มเติม</label>
-<textarea></textarea>
-<button class="secondary">ส่งขออนุมัติ</button>
+<div id="receipt" class="hidden">
+  <div class="shop">
+    <strong>ร้านรับซื้อ-รับฝากมือถือ</strong><br>
+    ที่อยู่ร้าน | โทร 0XX-XXX-XXXX
+  </div>
+  <hr>
+  <h2>ใบเสร็จรับเงิน</h2>
+  <p>เลขที่บิล: <span id="r_bill"></span></p>
+  <p>วันที่: <span id="r_date"></span></p>
+  <hr>
+  <p>ชื่อลูกค้า: <span id="r_name"></span></p>
+  <p>สินค้า: <span id="r_type"></span></p>
+  <p>รุ่น: <span id="r_model"></span></p>
+  <p>ยี่ห้อ: <span id="r_brand"></span></p>
+  <p>Serial / IMEI: <span id="r_serial"></span></p>
+  <p>สุขภาพแบต: <span id="r_battery"></span>%</p>
+  <p>หมายเหตุ: <span id="r_note"></span></p>
+  <hr>
+  <h3>ราคารับซื้อ: <span id="r_price"></span> บาท</h3>
+</div>
 </section>
 
 <script>
 function approve(){
  document.getElementById('status').innerText='สถานะ: อนุมัติแล้ว';
  document.getElementById('status').className='status approved';
- const bill='B'+Date.now();
+ let last=Number(localStorage.getItem('lastBill')||0)+1;
+ localStorage.setItem('lastBill',last);
+ const bill='B'+String(last).padStart(6,'0');
  document.getElementById('buyBill').value=bill;
- document.getElementById('pawnBill').value=bill;
  if(document.getElementById('dealType').value==='buy'){
-  document.getElementById('buySection').classList.remove('hidden');
- }else{
-  document.getElementById('pawnSection').classList.remove('hidden');
+   document.getElementById('buySection').classList.remove('hidden');
  }
 }
 
-function calcFee(){
- const price=Number(document.getElementById('pawnPrice').value||0);
- const term=document.getElementById('term').value;
- let rate=term==20?0.07:0.10;
- document.getElementById('fee').innerText=(price*rate).toFixed(2);
- let d=new Date();d.setDate(d.getDate()+Number(term));
- document.getElementById('dueDate').innerText=d.toLocaleDateString('th-TH');
+function printReceipt(){
+ document.getElementById('r_bill').innerText=document.getElementById('buyBill').value;
+ document.getElementById('r_date').innerText=document.getElementById('buyDate').value;
+ document.getElementById('r_name').innerText=document.getElementById('custName').value;
+ document.getElementById('r_type').innerText=document.getElementById('prodType').value;
+ document.getElementById('r_model').innerText=document.getElementById('model').value;
+ document.getElementById('r_brand').innerText=document.getElementById('brand').value;
+ document.getElementById('r_serial').innerText=document.getElementById('serial').value;
+ document.getElementById('r_battery').innerText=document.getElementById('battery').value;
+ document.getElementById('r_note').innerText=document.getElementById('note').value;
+ document.getElementById('r_price').innerText=document.getElementById('approvedPrice').value;
+ document.getElementById('receipt').classList.remove('hidden');
+ window.print();
 }
 </script>
 
