@@ -19,8 +19,8 @@ button.secondary{background:#6c757d}
 
 @media print{
  body *{visibility:hidden}
- #receipt, #receipt *{visibility:visible}
- #receipt{position:absolute;left:0;top:0;width:100%}
+ #receipt, #receipt *, #pawnReceipt, #pawnReceipt *{visibility:visible}
+ #receipt,#pawnReceipt{position:absolute;left:0;top:0;width:100%}
 }
 #receipt{font-size:14px}
 #receipt h2{text-align:center;margin-bottom:5px}
@@ -105,16 +105,75 @@ button.secondary{background:#6c757d}
 </div>
 </section>
 
+<section id="pawnSection" class="hidden">
+<h2>ฝาก</h2>
+<label>เลขที่บิล</label>
+<input type="text" id="pawnBill" readonly>
+<label>ชื่อ-นามสกุล</label>
+<input type="text" id="pawnName">
+<label>เบอร์โทร</label>
+<input type="text" id="pawnPhone">
+<label>ประเภทสินค้า</label>
+<input type="text" id="pawnType">
+<label>รุ่น</label>
+<input type="text" id="pawnModel">
+<label>ยี่ห้อ</label>
+<input type="text" id="pawnBrand">
+<label>Serial Number</label>
+<input type="text" id="pawnSerial">
+<label>IMEI / Part</label>
+<input type="text" id="pawnImei">
+<label>สุขภาพแบต (%)</label>
+<input type="number" id="pawnBattery">
+<label>ตำหนิ / บันทึกเพิ่มเติม</label>
+<textarea id="pawnNote"></textarea>
+<label>รูปถ่ายจริง 6 รูป</label>
+<input type="file" multiple accept="image/*">
+<label>ราคาขายฝาก</label>
+<input type="number" id="pawnPrice" oninput="calcPawn()">
+<label>ระยะเวลาชำระ</label>
+<select id="pawnTerm" onchange="calcPawn()">
+<option value="20">20 วัน (7%)</option>
+<option value="15">15 วัน (10%)</option>
+</select>
+<p>ค่าบริการ: <strong><span id="pawnFee">0</span></strong> บาท</p>
+<label>วันที่ปัจจุบัน</label>
+<input type="date" id="pawnTodayInput" onchange="calcPawn()">
+<p>วันที่ปัจจุบัน: <strong><span id="pawnToday">-</span></strong></p>
+<p>วันครบกำหนดการชำระ: <strong><span id="pawnDue">-</span></strong></p>
+<button onclick="printPawn()">พิมพ์ใบนัดชำระ</button>
+
+<div id="pawnReceipt" class="hidden">
+ <div class="shop"><strong>ร้านรับซื้อ-รับฝากมือถือ</strong></div>
+ <hr>
+ <h2>ใบนัดชำระ</h2>
+ <p>เลขที่บิล: <span id="pr_bill"></span></p>
+ <p>วันที่ทำรายการ: <span id="pr_today"></span></p>
+ <p>ชื่อลูกค้า: <span id="pr_name"></span></p>
+ <p>เบอร์โทร: <span id="pr_phone"></span></p>
+ <p>สินค้า: <span id="pr_item"></span></p>
+ <p>ราคาขายฝาก: <span id="pr_price"></span> บาท</p>
+ <p>ค่าบริการ: <span id="pr_fee"></span> บาท</p>
+ <p>วันครบกำหนด: <span id="pr_due"></span></p>
+</div>
+</section>
+
 <script>
 function approve(){
- document.getElementById('status').innerText='สถานะ: อนุมัติแล้ว';
- document.getElementById('status').className='status approved';
+ const status=document.getElementById('status');
+ status.innerText='สถานะ: อนุมัติแล้ว';
+ status.className='status approved';
  let last=Number(localStorage.getItem('lastBill')||0)+1;
  localStorage.setItem('lastBill',last);
  const bill='B'+String(last).padStart(6,'0');
  document.getElementById('buyBill').value=bill;
+ document.getElementById('pawnBill').value=bill;
  if(document.getElementById('dealType').value==='buy'){
    document.getElementById('buySection').classList.remove('hidden');
+   document.getElementById('pawnSection').classList.add('hidden');
+ } else {
+   document.getElementById('pawnSection').classList.remove('hidden');
+   document.getElementById('buySection').classList.add('hidden');
  }
 }
 
@@ -130,6 +189,35 @@ function printReceipt(){
  document.getElementById('r_note').innerText=document.getElementById('note').value;
  document.getElementById('r_price').innerText=document.getElementById('approvedPrice').value;
  document.getElementById('receipt').classList.remove('hidden');
+ window.print();
+}
+
+function calcPawn(){
+ const price=Number(document.getElementById('pawnPrice').value||0);
+ const term=Number(document.getElementById('pawnTerm').value);
+ const rate=term===20?0.07:0.10;
+ const fee=price*rate;
+ document.getElementById('pawnFee').innerText=fee.toFixed(2);
+ 
+ let todayInput=document.getElementById('pawnTodayInput').value;
+ let today=todayInput?new Date(todayInput):new Date();
+ document.getElementById('pawnToday').innerText=today.toLocaleDateString('th-TH');
+ 
+ const due=new Date(today);
+ due.setDate(due.getDate()+term);
+ document.getElementById('pawnDue').innerText=due.toLocaleDateString('th-TH');
+}
+
+function printPawn(){
+ document.getElementById('pr_bill').innerText=document.getElementById('pawnBill').value;
+ document.getElementById('pr_today').innerText=document.getElementById('pawnToday').innerText;
+ document.getElementById('pr_name').innerText=document.getElementById('pawnName').value;
+ document.getElementById('pr_phone').innerText=document.getElementById('pawnPhone').value;
+ document.getElementById('pr_item').innerText=document.getElementById('pawnType').value+' '+document.getElementById('pawnModel').value;
+ document.getElementById('pr_price').innerText=document.getElementById('pawnPrice').value;
+ document.getElementById('pr_fee').innerText=document.getElementById('pawnFee').innerText;
+ document.getElementById('pr_due').innerText=document.getElementById('pawnDue').innerText;
+ document.getElementById('pawnReceipt').classList.remove('hidden');
  window.print();
 }
 </script>
