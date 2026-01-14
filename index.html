@@ -17,7 +17,10 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
 
 @media print {
- body { background:#fff; }
+ body * { visibility:hidden; }
+ .a4, .a4 * { visibility:visible; }
+ .a4 { position:absolute; left:0; top:0; width:210mm; min-height:297mm; margin:0; padding:20mm; }
+}
  .no-print { display:none; }
  .a4 { width:210mm; min-height:297mm; margin:0; padding:20mm; box-shadow:none; }
 }
@@ -126,7 +129,7 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 <p>รวมยอดชำระ: <span id="total">0</span> บาท</p>
 <label>วันที่ปัจจุบัน</label><input type="date" id="startDate" />
 <p>วันครบกำหนด: <span id="dueDate"></span></p>
-<button onclick="window.print()">พิมพ์สัญญา</button>
+<<button onclick="printContract()">พิมพ์สัญญา</button>
 <button onclick="window.print()">พิมพ์ใบนัดชำระ</button>
 </div>
 
@@ -235,6 +238,10 @@ function calcFee(){
   due.setDate(due.getDate()+Number(term));
   document.getElementById('dueDate').innerText=due.toLocaleDateString('th-TH');
  }
+}
+function printContract(){
+ document.querySelector('.a4').scrollIntoView();
+ window.print();
 }
 </script>
 </body>
