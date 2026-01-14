@@ -17,9 +17,17 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
 
 @media print {
- body * { visibility:hidden; }
- .a4, .a4 * { visibility:visible; }
- .a4 { position:absolute; left:0; top:0; width:210mm; min-height:297mm; margin:0; padding:20mm; }
+  body * { visibility: hidden; }
+  .a4, .a4 * { visibility: visible; }
+  .a4 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 20mm;
+  }
 }
  .no-print { display:none; }
  .a4 { width:210mm; min-height:297mm; margin:0; padding:20mm; box-shadow:none; }
@@ -129,7 +137,7 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 <p>รวมยอดชำระ: <span id="total">0</span> บาท</p>
 <label>วันที่ปัจจุบัน</label><input type="date" id="startDate" />
 <p>วันครบกำหนด: <span id="dueDate"></span></p>
-<<button onclick="printContract()">พิมพ์สัญญา</button>
+<button onclick="printContract()">พิมพ์สัญญา</button>
 <button onclick="window.print()">พิมพ์ใบนัดชำระ</button>
 </div>
 
@@ -144,13 +152,13 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
 <button>ส่งขออนุมัติ</button>
 </div>
 
-<!-- หน้าเอกสารสัญญาฝาก A4 -->
-<div class="a4">
+<!-- หน้าเอกสารสัญญาฝาก A4 (ผูกข้อมูลจริง) -->
+<div class="a4 hidden" id="contractPage">
   <div class="header">
     <div class="logo">โลโก้ร้าน</div>
     <div class="top-right">
-      เลขที่สัญญา: <span class="dotted"></span><br>
-      วันที่ทำสัญญา: <span class="dotted"></span>
+      เลขที่สัญญา: <span class="dotted" id="c_bill"></span><br>
+      วันที่ทำสัญญา: <span class="dotted" id="c_date"></span>
     </div>
   </div>
 
@@ -162,19 +170,19 @@ button { padding:8px 16px; margin-top:15px; cursor:pointer; }
   โทรศัพท์ <span class="dotted"></span> แฟกซ์ <span class="dotted"></span>
 
   <p class="section-title">ข้อมูลผู้ขายฝาก</p>
-  ชื่อ–นามสกุล <span class="dotted" style="width:300px"></span><br>
+  ชื่อ–นามสกุล <span class="dotted" style="width:300px" id="c_name"></span><br>
   เลขบัตรประชาชน <span class="dotted" style="width:300px"></span><br>
-  ที่อยู่ตามบัตร <span class="dotted" style="width:450px"></span>
+  ที่อยู่ตามบัตร <span class="dotted" style="width:450px" id="c_address"></span>
 
   <p class="section-title">รายละเอียดทรัพย์สินที่นำมาฝาก</p>
-  ประเภทสินค้า <span class="dotted"></span> ยี่ห้อ <span class="dotted"></span> รุ่น <span class="dotted"></span><br>
+  ประเภทสินค้า <span class="dotted" id="c_type"></span> ยี่ห้อ <span class="dotted" id="c_brand"></span> รุ่น <span class="dotted" id="c_model"></span><br>
   Serial / IMEI / Part <span class="dotted" style="width:300px"></span><br>
   สภาพสินค้า <span class="dotted" style="width:400px"></span><br>
   อุปกรณ์ที่ได้รับ <span class="dotted" style="width:400px"></span>
 
   <p class="section-title">รายละเอียดการทำสัญญาฝาก</p>
-  จำนวนเงินที่รับฝาก <span class="dotted"></span> บาท ( <span class="dotted" style="width:300px"></span> )<br>
-  กำหนดวันไถ่ถอน <span class="dotted"></span><br>
+  จำนวนเงินที่รับฝาก <span class="dotted" id="c_price"></span> บาท ( <span class="dotted" style="width:300px"></span> )<br>
+  กำหนดวันไถ่ถอน <span class="dotted" id="c_due"></span><br>
   ค่าบริการ <span class="dotted"></span> บาท รวมยอดชำระ <span class="dotted"></span> บาท
 
   <p class="section-title">ข้อสัญญาและเงื่อนไข</p>
@@ -239,9 +247,27 @@ function calcFee(){
   document.getElementById('dueDate').innerText=due.toLocaleDateString('th-TH');
  }
 }
+function fillContract(){
+  document.getElementById('c_bill').innerText = document.getElementById('pawnBill').value;
+  document.getElementById('c_date').innerText = new Date().toLocaleDateString('th-TH');
+  document.getElementById('c_name').innerText = document.querySelector('#pawnSection input:nth-of-type(2)').value;
+  document.getElementById('c_address').innerText = document.querySelector('#pawnSection textarea').value;
+  document.getElementById('c_type').innerText = document.querySelector('#pawnSection input:nth-of-type(4)').value;
+  document.getElementById('c_brand').innerText = document.querySelector('#pawnSection input:nth-of-type(6)').value;
+  document.getElementById('c_model').innerText = document.querySelector('#pawnSection input:nth-of-type(5)').value;
+  document.getElementById('c_price').innerText = document.getElementById('pawnPrice').value;
+  document.getElementById('c_due').innerText = document.getElementById('dueDate').innerText;
+}
+
 function printContract(){
- document.querySelector('.a4').scrollIntoView();
- window.print();
+  const contract = document.getElementById('contractPage');
+  fillContract();
+  contract.classList.remove('hidden');
+  contract.scrollIntoView();
+  setTimeout(() => {
+    window.print();
+    contract.classList.add('hidden');
+  }, 100);
 }
 </script>
 </body>
