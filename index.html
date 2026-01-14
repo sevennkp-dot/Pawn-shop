@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>ระบบรับซื้อ / รับฝาก</title>
+<style>
+body{font-family:Arial;background:#f4f6f8;margin:0;padding:20px}
+h1{color:#333}
+section{background:#fff;padding:20px;margin-bottom:20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
+label{display:block;margin-top:10px;font-weight:bold}
+input,select,textarea{width:100%;padding:8px;margin-top:4px}
+.checkbox-group label{font-weight:normal;display:inline-block;margin-right:10px}
+button{margin-top:15px;padding:10px 20px;border:none;border-radius:6px;background:#007bff;color:#fff;cursor:pointer}
+button.secondary{background:#6c757d}
+.status{font-weight:bold}
+.approved{color:green}
+pending{color:orange}
+.hidden{display:none}
+</style>
+</head>
+<body>
+
+<h1>หน้าเลือกการทำงาน</h1>
+
+<section>
+<h2>1. ขออนุมัติจากผู้ดูแลระบบ</h2>
+<label>ถ่ายรูปสินค้า (5-6 รูป)</label>
+<input type="file" multiple accept="image/*">
+
+<label>ประเภทสินค้า</label>
+<input type="text">
+
+<label>รุ่น</label>
+<input type="text">
+
+<label>ยี่ห้อ</label>
+<input type="text">
+
+<label>ตำหนิ</label>
+<textarea></textarea>
+
+<label>รับซื้อ หรือ ฝาก</label>
+<select id="dealType">
+<option value="buy">รับซื้อ</option>
+<option value="pawn">ฝาก</option>
+</select>
+
+<label>อุปกรณ์ที่มี (เลือกได้หลายรายการ)</label>
+<div class="checkbox-group">
+<label><input type="checkbox"> หัวโดด</label>
+<label><input type="checkbox"> ครบกล่อง</label>
+<label><input type="checkbox"> สาย</label>
+<label><input type="checkbox"> กระเป๋า</label>
+<label><input type="checkbox"> กล่อง</label>
+<label><input type="checkbox"> เครื่อง</label>
+<label><input type="checkbox"> รีโมท</label>
+<label><input type="checkbox"> เพิ่มเติม</label>
+</div>
+
+<label>ราคาที่อนุมัติ</label>
+<input type="number">
+
+<button onclick="approve()">ส่งขออนุมัติ</button>
+<p id="status" class="status pending">สถานะ: รออนุมัติ</p>
+</section>
+
+<section id="buySection" class="hidden">
+<h2>1. รับซื้อ (เมื่ออนุมัติ)</h2>
+<label>วันที่ทำการซื้อขาย</label>
+<input type="date">
+<label>เลขที่บิล</label>
+<input type="text" id="buyBill" readonly>
+<label>ชื่อ-นามสกุล</label>
+<input type="text">
+<label>ประเภทสินค้า</label>
+<input type="text">
+<label>รุ่น</label>
+<input type="text">
+<label>ยี่ห้อ</label>
+<input type="text">
+<label>Serial Number</label>
+<input type="text">
+<label>IMEI / Part</label>
+<input type="text">
+<label>สุขภาพแบต (%)</label>
+<input type="number">
+<label>ตำหนิ / บันทึกเพิ่มเติม</label>
+<textarea></textarea>
+<label>รูปถ่ายจริง 6 รูป</label>
+<input type="file" multiple accept="image/*">
+<button>พิมพ์ใบเสร็จ</button>
+</section>
+
+<section id="pawnSection" class="hidden">
+<h2>2. ฝาก (เมื่ออนุมัติ)</h2>
+<label>เลขที่บิล</label>
+<input type="text" id="pawnBill" readonly>
+<label>ชื่อ-นามสกุล</label>
+<input type="text">
+<label>ประเภทสินค้า</label>
+<input type="text">
+<label>รุ่น</label>
+<input type="text">
+<label>ยี่ห้อ</label>
+<input type="text">
+<label>Serial Number</label>
+<input type="text">
+<label>IMEI / Part</label>
+<input type="text">
+<label>สุขภาพแบต (%)</label>
+<input type="number">
+<label>ตำหนิ / บันทึกเพิ่มเติม</label>
+<textarea></textarea>
+<label>รูปถ่ายจริง 6 รูป</label>
+<input type="file" multiple accept="image/*">
+<label>ราคาขายฝาก</label>
+<input type="number" id="pawnPrice">
+<label>ระยะเวลาชำระ</label>
+<select id="term" onchange="calcFee()">
+<option value="20">20 วัน (7%)</option>
+<option value="15">15 วัน (10%)</option>
+</select>
+<p>ค่าบริการ: <span id="fee">0</span> บาท</p>
+<p>วันครบกำหนด: <span id="dueDate">-</span></p>
+<button>พิมพ์ใบนัดชำระ</button>
+</section>
+
+<section>
+<h2>4. เพิ่มเงินต้น</h2>
+<label>ค้นหาด้วยชื่อ</label>
+<input type="text">
+<label>ค้นหาด้วยเลขที่บิล</label>
+<input type="text">
+<label>เลือกสัญญา</label>
+<select><option>สัญญา #1</option></select>
+<label>ขออนุมัติเพิ่มวงเงิน</label>
+<input type="number">
+<label>บันทึกเพิ่มเติม</label>
+<textarea></textarea>
+<button class="secondary">ส่งขออนุมัติ</button>
+</section>
+
+<script>
+function approve(){
+ document.getElementById('status').innerText='สถานะ: อนุมัติแล้ว';
+ document.getElementById('status').className='status approved';
+ const bill='B'+Date.now();
+ document.getElementById('buyBill').value=bill;
+ document.getElementById('pawnBill').value=bill;
+ if(document.getElementById('dealType').value==='buy'){
+  document.getElementById('buySection').classList.remove('hidden');
+ }else{
+  document.getElementById('pawnSection').classList.remove('hidden');
+ }
+}
+
+function calcFee(){
+ const price=Number(document.getElementById('pawnPrice').value||0);
+ const term=document.getElementById('term').value;
+ let rate=term==20?0.07:0.10;
+ document.getElementById('fee').innerText=(price*rate).toFixed(2);
+ let d=new Date();d.setDate(d.getDate()+Number(term));
+ document.getElementById('dueDate').innerText=d.toLocaleDateString('th-TH');
+}
+</script>
+
+</body>
+</html>
