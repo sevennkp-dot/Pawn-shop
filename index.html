@@ -1,224 +1,196 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>ระบบรับซื้อ / รับฝาก</title>
-<style>
-body{font-family:Arial;background:#f4f6f8;margin:0;padding:20px}
-h1{color:#333}
-section{background:#fff;padding:20px;margin-bottom:20px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.1)}
-label{display:block;margin-top:10px;font-weight:bold}
-input,select,textarea{width:100%;padding:8px;margin-top:4px}
-.checkbox-group label{font-weight:normal;display:inline-block;margin-right:10px}
-button{margin-top:15px;padding:10px 20px;border:none;border-radius:6px;background:#007bff;color:#fff;cursor:pointer}
-button.secondary{background:#6c757d}
-.status{font-weight:bold}
-.approved{color:green}
-.pending{color:orange}
-.hidden{display:none}
-
-@media print{
- body *{visibility:hidden}
- #receipt, #receipt *, #pawnReceipt, #pawnReceipt *{visibility:visible}
- #receipt,#pawnReceipt{position:absolute;left:0;top:0;width:100%}
-}
-#receipt{font-size:14px}
-#receipt h2{text-align:center;margin-bottom:5px}
-#receipt .shop{text-align:center;font-size:13px}
-</style>
+  <meta charset="UTF-8" />
+  <title>ระบบรับซื้อ / รับฝาก</title>
+  <style>
+    body { font-family: Tahoma, sans-serif; background:#f4f6f8; margin:0; padding:20px; }
+    h1,h2 { color:#333; }
+    .card { background:#fff; padding:20px; margin-bottom:20px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,.1); }
+    label { display:block; margin-top:10px; font-weight:bold; }
+    input, select, textarea { width:100%; padding:8px; margin-top:5px; }
+    button { margin-top:15px; padding:10px 20px; border:none; border-radius:6px; cursor:pointer; }
+    .primary { background:#2563eb; color:#fff; }
+    .secondary { background:#16a34a; color:#fff; }
+    .warning { background:#f59e0b; color:#fff; }
+    .status { font-weight:bold; padding:10px; }
+    .approved { color:green; }
+    .pending { color:orange; }
+  </style>
 </head>
 <body>
 
 <h1>หน้าเลือกการทำงาน</h1>
 
-<section>
-<h2>1. ขออนุมัติจากผู้ดูแลระบบ</h2>
-<label>ถ่ายรูปสินค้า (5-6 รูป)</label>
-<input type="file" multiple accept="image/*">
+<div class="card">
+  <h2>ขออนุมัติจากผู้ดูแลระบบ</h2>
 
-<label>ประเภทสินค้า</label>
-<input type="text">
+  <label>รับซื้อหรือฝาก</label>
+  <select id="dealType">
+    <option value="">-- เลือก --</option>
+    <option value="buy">รับซื้อ</option>
+    <option value="pawn">รับฝาก</option>
+  </select>
 
-<label>รุ่น</label>
-<input type="text">
-
-<label>ยี่ห้อ</label>
-<input type="text">
-
-<label>ตำหนิ</label>
-<textarea></textarea>
-
-<label>รับซื้อ หรือ ฝาก</label>
-<select id="dealType">
-<option value="buy">รับซื้อ</option>
-<option value="pawn">ฝาก</option>
-</select>
-
-<label>ราคาที่อนุมัติ</label>
-<input type="number" id="approvedPrice">
-
-<button onclick="approve()">ส่งขออนุมัติ</button>
-<p id="status" class="status pending">สถานะ: รออนุมัติ</p>
-</section>
-
-<section id="buySection" class="hidden">
-<h2>รับซื้อ</h2>
-<label>วันที่ทำการซื้อขาย</label>
-<input type="date" id="buyDate">
-<label>เลขที่บิล</label>
-<input type="text" id="buyBill" readonly>
-<label>ชื่อ-นามสกุล</label>
-<input type="text" id="custName">
-<label>ประเภทสินค้า</label>
-<input type="text" id="prodType">
-<label>รุ่น</label>
-<input type="text" id="model">
-<label>ยี่ห้อ</label>
-<input type="text" id="brand">
-<label>Serial / IMEI</label>
-<input type="text" id="serial">
-<label>สุขภาพแบต (%)</label>
-<input type="number" id="battery">
-<label>หมายเหตุ</label>
-<textarea id="note"></textarea>
-<button onclick="printReceipt()">พิมพ์ใบเสร็จ</button>
-
-<div id="receipt" class="hidden">
-  <div class="shop">
-    <strong>ร้านรับซื้อ-รับฝากมือถือ</strong><br>
-    ที่อยู่ร้าน | โทร 0XX-XXX-XXXX
-  </div>
-  <hr>
-  <h2>ใบเสร็จรับเงิน</h2>
-  <p>เลขที่บิล: <span id="r_bill"></span></p>
-  <p>วันที่: <span id="r_date"></span></p>
-  <hr>
-  <p>ชื่อลูกค้า: <span id="r_name"></span></p>
-  <p>สินค้า: <span id="r_type"></span></p>
-  <p>รุ่น: <span id="r_model"></span></p>
-  <p>ยี่ห้อ: <span id="r_brand"></span></p>
-  <p>Serial / IMEI: <span id="r_serial"></span></p>
-  <p>สุขภาพแบต: <span id="r_battery"></span>%</p>
-  <p>หมายเหตุ: <span id="r_note"></span></p>
-  <hr>
-  <h3>ราคารับซื้อ: <span id="r_price"></span> บาท</h3>
+  <button class="primary" onclick="approve()">ส่งขออนุมัติ</button>
+  <div id="approvalStatus" class="status pending">สถานะ: รออนุมัติ</div>
 </div>
-</section>
 
-<section id="pawnSection" class="hidden">
-<h2>ฝาก</h2>
-<label>เลขที่บิล</label>
-<input type="text" id="pawnBill" readonly>
-<label>ชื่อ-นามสกุล</label>
-<input type="text" id="pawnName">
-<label>เบอร์โทร</label>
-<input type="text" id="pawnPhone">
-<label>ประเภทสินค้า</label>
-<input type="text" id="pawnType">
-<label>รุ่น</label>
-<input type="text" id="pawnModel">
-<label>ยี่ห้อ</label>
-<input type="text" id="pawnBrand">
-<label>Serial Number</label>
-<input type="text" id="pawnSerial">
-<label>IMEI / Part</label>
-<input type="text" id="pawnImei">
-<label>สุขภาพแบต (%)</label>
-<input type="number" id="pawnBattery">
-<label>ตำหนิ / บันทึกเพิ่มเติม</label>
-<textarea id="pawnNote"></textarea>
-<label>รูปถ่ายจริง 6 รูป</label>
-<input type="file" multiple accept="image/*">
-<label>ราคาขายฝาก</label>
-<input type="number" id="pawnPrice" oninput="calcPawn()">
-<label>ระยะเวลาชำระ</label>
-<select id="pawnTerm" onchange="calcPawn()">
-<option value="20">20 วัน (7%)</option>
-<option value="15">15 วัน (10%)</option>
-</select>
-<p>ค่าบริการ: <strong><span id="pawnFee">0</span></strong> บาท</p>
-<label>วันที่ปัจจุบัน</label>
-<input type="date" id="pawnTodayInput" onchange="calcPawn()">
-<p>วันที่ปัจจุบัน: <strong><span id="pawnToday">-</span></strong></p>
-<p>วันครบกำหนดการชำระ: <strong><span id="pawnDue">-</span></strong></p>
-<button onclick="printPawn()">พิมพ์ใบนัดชำระ</button>
+<!-- ================= รับซื้อ ================= -->
+<div class="card" id="buySection" style="display:none;">
+  <h2>รับซื้อ (เมื่ออนุมัติ)</h2>
 
-<div id="pawnReceipt" class="hidden">
- <div class="shop"><strong>ร้านรับซื้อ-รับฝากมือถือ</strong></div>
- <hr>
- <h2>ใบนัดชำระ</h2>
- <p>เลขที่บิล: <span id="pr_bill"></span></p>
- <p>วันที่ทำรายการ: <span id="pr_today"></span></p>
- <p>ชื่อลูกค้า: <span id="pr_name"></span></p>
- <p>เบอร์โทร: <span id="pr_phone"></span></p>
- <p>สินค้า: <span id="pr_item"></span></p>
- <p>ราคาขายฝาก: <span id="pr_price"></span> บาท</p>
- <p>ค่าบริการ: <span id="pr_fee"></span> บาท</p>
- <p>วันครบกำหนด: <span id="pr_due"></span></p>
+  <label>วันที่ทำการซื้อขาย</label>
+  <input type="date" id="buyDate">
+
+  <label>เลขที่บิล</label>
+  <input type="text" id="buyBill" readonly>
+
+  <label>ชื่อ-นามสกุล</label>
+  <input type="text" id="buyName">
+
+  <label>ประเภทสินค้า</label>
+  <input type="text" id="buyType">
+
+  <label>รุ่น</label>
+  <input type="text" id="buyModel">
+
+  <label>ยี่ห้อ</label>
+  <input type="text" id="buyBrand">
+
+  <label>Serial Number</label>
+  <input type="text" id="buySerial">
+
+  <label>IMEI / Part</label>
+  <input type="text" id="buyImei">
+
+  <label>สุขภาพแบต (%)</label>
+  <input type="number" id="buyBattery">
+
+  <label>ตำหนิ / บันทึกเพิ่มเติม</label>
+  <textarea id="buyNote"></textarea>
+
+  <label>รูปถ่ายจริง (6 รูป)</label>
+  <input type="file" multiple accept="image/*">
+
+  <button class="secondary" onclick="printReceipt()">พิมพ์ใบเสร็จ</button>
 </div>
-</section>
+
+<!-- ================= รับฝาก ================= -->
+<div class="card" id="pawnSection" style="display:none;">
+  <h2>รับฝาก (เมื่ออนุมัติ)</h2>
+
+  <label>เลขที่บิล</label>
+  <input type="text" id="pawnBill" readonly>
+
+  <label>ชื่อ-นามสกุล</label>
+  <input type="text" id="pawnName">
+
+  <label>ที่อยู่</label>
+  <textarea id="pawnAddress"></textarea>
+
+  <label>เบอร์โทร</label>
+  <input type="tel" id="pawnPhone">
+
+  <label>ประเภทสินค้า</label>
+  <input type="text" id="pawnType">
+
+  <label>รุ่น</label>
+  <input type="text" id="pawnModel">
+
+  <label>ยี่ห้อ</label>
+  <input type="text" id="pawnBrand">
+
+  <label>Serial Number</label>
+  <input type="text" id="pawnSerial">
+
+  <label>IMEI / Part</label>
+  <input type="text" id="pawnImei">
+
+  <label>สุขภาพแบต (%)</label>
+  <input type="number" id="pawnBattery">
+
+  <label>ตำหนิ / บันทึกเพิ่มเติม</label>
+  <textarea id="pawnNote"></textarea>
+
+  <label>รูปถ่ายจริง (6 รูป)</label>
+  <input type="file" multiple accept="image/*">
+
+  <label>ราคาขายฝาก</label>
+  <input type="number" id="pawnPrice" oninput="calculateFee()">
+
+  <label>ระยะเวลาชำระ</label>
+  <select id="term" onchange="calculateFee()">
+    <option value="">-- เลือก --</option>
+    <option value="20">20 วัน (ค่าบริการ 7%)</option>
+    <option value="15">15 วัน (ค่าบริการ 10%)</option>
+  </select>
+
+  <div class="status" id="feeResult">ค่าบริการ: -</div>
+  <div class="status" id="dueDate">วันครบกำหนด: -</div>
+
+  <button class="secondary" onclick="printContract()">พิมพ์สัญญา</button>
+  <button class="warning" onclick="printAppointment()">พิมพ์ใบนัดชำระ</button>
+</div>
 
 <script>
-function approve(){
- const status=document.getElementById('status');
- status.innerText='สถานะ: อนุมัติแล้ว';
- status.className='status approved';
- let last=Number(localStorage.getItem('lastBill')||0)+1;
- localStorage.setItem('lastBill',last);
- const bill='B'+String(last).padStart(6,'0');
- document.getElementById('buyBill').value=bill;
- document.getElementById('pawnBill').value=bill;
- if(document.getElementById('dealType').value==='buy'){
-   document.getElementById('buySection').classList.remove('hidden');
-   document.getElementById('pawnSection').classList.add('hidden');
- } else {
-   document.getElementById('pawnSection').classList.remove('hidden');
-   document.getElementById('buySection').classList.add('hidden');
- }
+function randomBill() {
+  return 'B' + Date.now() + Math.floor(Math.random() * 100);
 }
 
-function printReceipt(){
- document.getElementById('r_bill').innerText=document.getElementById('buyBill').value;
- document.getElementById('r_date').innerText=document.getElementById('buyDate').value;
- document.getElementById('r_name').innerText=document.getElementById('custName').value;
- document.getElementById('r_type').innerText=document.getElementById('prodType').value;
- document.getElementById('r_model').innerText=document.getElementById('model').value;
- document.getElementById('r_brand').innerText=document.getElementById('brand').value;
- document.getElementById('r_serial').innerText=document.getElementById('serial').value;
- document.getElementById('r_battery').innerText=document.getElementById('battery').value;
- document.getElementById('r_note').innerText=document.getElementById('note').value;
- document.getElementById('r_price').innerText=document.getElementById('approvedPrice').value;
- document.getElementById('receipt').classList.remove('hidden');
- window.print();
+function approve() {
+  const type = document.getElementById('dealType').value;
+  document.getElementById('approvalStatus').innerText = 'สถานะ: อนุมัติแล้ว';
+  document.getElementById('approvalStatus').className = 'status approved';
+
+  if (type === 'buy') {
+    document.getElementById('buySection').style.display = 'block';
+    document.getElementById('buyBill').value = randomBill();
+  }
+  if (type === 'pawn') {
+    document.getElementById('pawnSection').style.display = 'block';
+    document.getElementById('pawnBill').value = randomBill();
+  }
 }
 
-function calcPawn(){
- const price=Number(document.getElementById('pawnPrice').value||0);
- const term=Number(document.getElementById('pawnTerm').value);
- const rate=term===20?0.07:0.10;
- const fee=price*rate;
- document.getElementById('pawnFee').innerText=fee.toFixed(2);
- 
- let todayInput=document.getElementById('pawnTodayInput').value;
- let today=todayInput?new Date(todayInput):new Date();
- document.getElementById('pawnToday').innerText=today.toLocaleDateString('th-TH');
- 
- const due=new Date(today);
- due.setDate(due.getDate()+term);
- document.getElementById('pawnDue').innerText=due.toLocaleDateString('th-TH');
+function calculateFee() {
+  const price = Number(document.getElementById('pawnPrice').value || 0);
+  const term = document.getElementById('term').value;
+  let rate = 0;
+  if (term === '20') rate = 0.07;
+  if (term === '15') rate = 0.10;
+
+  const fee = price * rate;
+  document.getElementById('feeResult').innerText = 'ค่าบริการ: ' + fee.toFixed(2) + ' บาท';
+
+  if (term) {
+    const d = new Date();
+    d.setDate(d.getDate() + Number(term));
+    document.getElementById('dueDate').innerText = 'วันครบกำหนด: ' + d.toLocaleDateString('th-TH');
+  } else {
+    document.getElementById('dueDate').innerText = 'วันครบกำหนด: -';
+  }
 }
 
-function printPawn(){
- document.getElementById('pr_bill').innerText=document.getElementById('pawnBill').value;
- document.getElementById('pr_today').innerText=document.getElementById('pawnToday').innerText;
- document.getElementById('pr_name').innerText=document.getElementById('pawnName').value;
- document.getElementById('pr_phone').innerText=document.getElementById('pawnPhone').value;
- document.getElementById('pr_item').innerText=document.getElementById('pawnType').value+' '+document.getElementById('pawnModel').value;
- document.getElementById('pr_price').innerText=document.getElementById('pawnPrice').value;
- document.getElementById('pr_fee').innerText=document.getElementById('pawnFee').innerText;
- document.getElementById('pr_due').innerText=document.getElementById('pawnDue').innerText;
- document.getElementById('pawnReceipt').classList.remove('hidden');
- window.print();
+function printContract() {
+  const win = window.open('', '_blank');
+  if (!win) return alert('กรุณาอนุญาต popup');
+  win.document.write('<h1>สัญญาขายฝาก</h1><p>เลขที่บิล: ' + document.getElementById('pawnBill').value + '</p>');
+  win.print();
+}
+
+function printAppointment() {
+  const win = window.open('', '_blank');
+  if (!win) return alert('กรุณาอนุญาต popup');
+  win.document.write('<h2>ใบนัดชำระ</h2><p>' + document.getElementById('dueDate').innerText + '</p>');
+  win.print();
+}
+
+function printReceipt() {
+  const win = window.open('', '_blank');
+  if (!win) return alert('กรุณาอนุญาต popup');
+  win.document.write('<h2>ใบเสร็จรับเงิน</h2><p>เลขที่บิล: ' + document.getElementById('buyBill').value + '</p>');
+  win.print();
 }
 </script>
 
