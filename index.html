@@ -2,95 +2,94 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<title>ใบรับซื้อขายฝาก</title>
+<title>ใบรับซื้อขายฝาก + OCR</title>
+<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
-  body { font-family:"TH Sarabun New",Arial,sans-serif;font-size:18px; }
-  .page { width:850px;margin:auto;border:1px solid #000;padding:30px;position:relative; }
-  .right { position:absolute;top:40px;right:20px;text-align:right; }
-  .idbox { position:absolute; top:50%; right:20px; transform:translateY(-50%); width:260px; height:180px; border:1px dashed #333; text-align:center; display:flex; align-items:center; justify-content:center; overflow:hidden; }
-  .idbox img { width:100%;height:100%;object-fit:cover; }
+  body{font-family:"TH Sarabun New",Arial,sans-serif;font-size:18px;}
+  .page{width:850px;margin:auto;border:1px solid #000;padding:30px;position:relative;}
+  .right{position:absolute;top:40px;right:20px;text-align:right;}
+  .idbox{position:absolute;top:50%;right:20px;transform:translateY(-50%);width:260px;height:180px;border:1px dashed #333;display:flex;align-items:center;justify-content:center;overflow:hidden;text-align:center;}
+  .idbox img{width:100%;height:100%;object-fit:cover;}
   input[type=file]{display:none;}
   .uplabel{font-size:14px;color:#007bff;text-decoration:underline;cursor:pointer;margin-top:5px;}
-  #err { color:red;font-size:14px;margin-top:5px; }
-  @media print {
-    .uplabel, input[type=file], #err { display: none; }
-    .idbox { border:1px solid #000; }
-  }
+  @media print{.uplabel,input[type=file]{display:none;}.idbox{border:1px solid #000;}}
 </style>
 </head>
 <body>
 <div class="page">
-  <img src="logo.png" alt="สัญญาลักร้าน" style="position:absolute;top:20px;left:20px;width:120px;">
+  <img src="logo.png" style="position:absolute;top:20px;left:20px;width:120px;">
   <h2 style="text-align:center;">ใบรับซื้อขายฝาก</h2>
-  <div class="right">
-    เลขที่ .......................<br>
-    ขายฝากวันที่ ..............
-  </div>
-  <p><strong>เสี่ยเป้อรับฝาก ริมน้ำฯ</strong><br>
-  446/4-5 ม.ธาตุเชิงชุม ต.ธาตุเชิงชุม อ.เมืองสกลนคร จ.สกลนคร<br>
-  โทรศัพท์ 061-210-0700</p>
-  <p>ข้าพเจ้า ........................................ เลขบัตรประชาชน ...........................</p>
-  <p>ที่อยู่ .................................................................................................</p>
-  <p>ได้นำสินค้า ยี่ห้อ ............. รุ่น ............. Model .............</p>
+  <div class="right">เลขที่ <span id="doc_no">............</span><br>ขายฝากวันที่ <span id="doc_date">............</span></div>
+
+  <p>ข้าพเจ้า <span id="fname">........................................</span> เลขบัตรประชาชน <span id="cid">...........................</span></p>
+  <p>วันเกิด <span id="dob">........................................</span></p>
+  <p>วันออกบัตร <span id="issue">........................................</span> วันหมดอายุ <span id="expire">........................................</span></p>
+  <p>ที่อยู่ <span id="addr">.................................................................................</span></p>
+  <p>อำเภอ/เขต <span id="district">........................................</span> จังหวัด <span id="province">........................................</span></p>
+
+  <h3>สินค้าที่ขายฝาก</h3>
+  <p>ยี่ห้อ ............. รุ่น ............. Model .............</p>
   <p>Serial/IMEI .....................................................................................</p>
   <p>สภาพสินค้า ....................................................................................</p>
-  <p>ขายฝากให้ร้าน เสี่ยเปี๊ยบรับฝาก ริมน้ำฯ</p>
-  <p>เป็นเงิน ........................ บาท อัตราค่าบริการ ........................ บาท</p>
-  <p>ได้รับเงินสุทธิ ........................ บาท</p>
-  <p>ครบกำหนดวัน .................... หากไม่ไถ่ถอนให้ถือว่าสละสิทธิ์</p>
+
   <h3>เงื่อนไขการรับบริการ</h3>
-  <p>
-    1. หากพ้นกำหนดวันซื้อคืนข้างต้นถือว่าผู้ขายสละสิทธิ์ สินค้าถือเป็นกรรมสิทธิ์ของทางร้านโดยชอบธรรม และไม่ต้องบอกกล่าวให้ผู้ขายฝากรับทราบ<br>
-    2. ใบขายฝากนี้ผู้ขายฝากต้องรักษาให้ดีอย่าทำหาย ถ้ามีข้อผิดพลาดใดๆ เกิดขึ้น ทางร้านจะไม่รับผิดชอบใดๆ ทั้งสิ้น หากใบขายฝากหาย ผู้ขายฝากจะรับคืนสินค้าไม่ได้ นอกเสียจากมีหลักฐานยืนยันการเป็นเจ้าของอย่างถูกต้องตามกฎหมายเท่านั้น<br>
-    3. ผู้ขายฝากต้องนำบัตรประจำตัวประชาชนหรือสำเนามาซื้อคืนสินค้าที่ขายฝากไว้ทุกครั้ง<br>
-    หมายเหตุ: กรณีสินค้าสูญหายหรือสูญเสีย ซึ่งพิสูจน์ได้ว่าถูกโจรกรรมหรือเนื่องมาจากภัยธรรมชาติ ทางร้านไม่ต้องชดใช้หรือรับผิดชอบใดๆ ทั้งสิ้น
-  </p>
+  <p>1. หากพ้นกำหนดวันซื้อคืนถือว่าสละสิทธิ์ และสินค้าเป็นกรรมสิทธิ์ของร้าน<br>
+     2. ผู้ขายฝากต้องเก็บใบนี้ ถ้าหายร้านไม่รับผิดชอบ<br>
+     3. ต้องนำบัตรประชาชนทุกครั้งเมื่อมาซื้อคืน</p>
+
   <div style="position:absolute;right:20px;bottom:20px;text-align:right;">
-  ลงชื่อ ................................ ผู้ฝาก<br><br>
-  ลงชื่อ ................................ ผู้รับฝาก
-</div>
+    ลงชื่อ ................................ ผู้ฝาก<br><br>
+    ลงชื่อ ................................ ผู้รับฝาก
+  </div>
 
   <div class="idbox" id="preview">รูปบัตรประชาชน</div>
   <label class="uplabel" for="upload">อัปโหลดบัตรประชาชน</label>
   <input id="upload" type="file" accept="image/*">
-  <div id="err"></div>
 </div>
+
 <script>
-(function(){
-  const up=document.getElementById('upload');
-  const pv=document.getElementById('preview');
-  const err=document.getElementById('err');
-
-  async function ocrImage(data){
-    if(!window.Tesseract){ err.textContent='❌ โหลด Tesseract ไม่สำเร็จ'; return null; }
+const up=document.getElementById('upload');
+const pv=document.getElementById('preview');
+up.addEventListener('change',async e=>{
+  let f=e.target.files[0];if(!f)return;
+  let r=new FileReader();
+  r.onload=async _=>{
+    pv.innerHTML=`<img src="${r.result}">`;
     try{
-      const res=await Tesseract.recognize(data,'tha+eng');
-      return res.data.text||'';
-    }catch(e){ err.textContent='❌ ไม่สามารถอ่านข้อมูลจากบัตรได้'; return null; }
-  }
+      const {data:{text}}=await Tesseract.recognize(r.result,'tha+eng');
+      autoFill(text);
+    }catch(err){console.error('OCR fail',err);}
+  };
+  r.readAsDataURL(f);
+});
 
-  up.addEventListener('change',e=>{
-    const f=e.target.files[0];
-    if(!f){err.textContent='';return;}
-    if(!f.type.startsWith('image/')){err.textContent='❌ ต้องเป็นไฟล์รูปภาพเท่านั้น';return;}
-    const r=new FileReader();
-    r.onload=async e2=>{
-      const data=e2.target.result;
-      pv.innerHTML='<img src="'+data+'">';
-      err.textContent='กำลังอ่านข้อมูลจากภาพ...';
-      const text=await ocrImage(data);
-      if(!text){return;}
-      err.textContent='';
+function autoFill(t){
+  t=t.replace(/\s+/g,' ');
 
-      const id=(text.match(/[0-9]{13}/)||[])[0];
-      if(id){document.body.innerHTML=document.body.innerHTML.replace('...........................',id);}    
+  let id=t.match(/(\d{13})/);
+  if(id)cid.textContent=id[1];
 
-      const namePart=(text.split('ชื่อ')[1]||'').split('\n')[0].trim();
-      if(namePart){document.body.innerHTML=document.body.innerHTML.replace('........................................',namePart);} 
-    };
-    r.readAsDataURL(f);
-  });
-})();
+  let full=t.match(/(?:ชื่อ|Name) ?([ก-๙A-Za-z]+) ?([ก-๙A-Za-z]+)?/);
+  if(full)fname.textContent=((full[1]||'')+' '+(full[2]||'')).trim();
+
+  let addrMatch=t.match(/(?:ที่อยู่|Address)[: ]+([ก-๙A-Za-z0-9\/\- .,]+)/);
+  if(addrMatch)addr.textContent=addrMatch[1].trim();
+
+  let dobMatch=t.match(/(?:เกิด|Birth|DOB)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+  if(dobMatch)dob.textContent=dobMatch[1];
+
+  let issueMatch=t.match(/(?:ออกบัตร|Issued)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+  if(issueMatch)issue.textContent=issueMatch[1];
+
+  let expMatch=t.match(/(?:หมดอายุ|Expiry|EXP)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
+  if(expMatch)expire.textContent=expMatch[1];
+
+  let prov=t.match(/จังหวัด ?([ก-๙]+)/);
+  if(prov)province.textContent=prov[1];
+
+  let dist=t.match(/(?:อำเภอ|เขต) ?([ก-๙]+)/);
+  if(dist)district.textContent=dist[1];
+}
 </script>
 </body>
 </html>
