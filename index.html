@@ -1,282 +1,58 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8" />
-<title>ระบบรับซื้อ / รับฝาก</title>
+<meta charset="UTF-8">
+<title>ใบรับซื้อขายฝาก</title>
 <style>
-body { font-family: Tahoma, Arial, sans-serif; background:#f5f5f5; }
-.container { max-width:1200px; margin:auto; background:#fff; padding:20px; }
-h1,h2,h3 { margin-top:20px; }
-label { display:block; margin-top:10px; }
-input, select, textarea { width:100%; padding:6px; margin-top:4px; }
-textarea { height:80px; }
-.section { border:1px solid #ccc; padding:15px; margin-top:20px; }
-.hidden { display:none; }
-button { padding:8px 16px; margin-top:15px; cursor:pointer; }
-.status { font-weight:bold; }
-@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
-
-@media print {
-  body * { visibility: hidden; }
-  .a4, .a4 * { visibility: visible; }
-  .a4 {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 210mm;
-    min-height: 297mm;
-    margin: 0;
-    padding: 20mm;
+  body { font-family:"TH Sarabun New",Arial,sans-serif;font-size:18px; }
+  .page { width:850px;margin:auto;border:1px solid #000;padding:30px;position:relative; }
+  .right { position:absolute;top:40px;right:20px;text-align:right; }
+  .idbox { position:absolute; top:50%; right:20px; transform:translateY(-50%); width:260px; height:180px; border:1px dashed #333; text-align:center; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  .idbox img { width:100%;height:100%;object-fit:cover; }
+  input[type=file]{display:none;}
+  .uplabel{font-size:14px;color:#007bff;text-decoration:underline;cursor:pointer;margin-top:5px;}
+  @media print {
+    .uplabel, input[type=file] { display: none; }
+    .idbox { border:1px solid #000; }
   }
-}
- .no-print { display:none; }
- .a4 { width:210mm; min-height:297mm; margin:0; padding:20mm; box-shadow:none; }
-}
-
-.a4 {
- font-family:'Sarabun', serif;
- width:210mm;
- min-height:297mm;
- margin:20px auto;
- padding:20mm;
- background:#fff;
- color:#000;
-}
-.header { display:flex; justify-content:space-between; align-items:flex-start; }
-.logo { width:120px; height:60px; border:1px solid #000; text-align:center; font-size:12px; }
-.title { text-align:center; font-size:20pt; font-weight:700; margin-top:10px; }
-.top-right { text-align:right; font-size:12pt; }
-.dotted { border-bottom:1px dashed #000; display:inline-block; min-width:200px; }
-.section-title { font-weight:700; margin-top:12px; }
-.qr { position:absolute; bottom:20mm; right:20mm; text-align:center; font-size:10pt; }
-.signature { margin-top:25px; display:flex; justify-content:space-between; }
-.signature div { width:45%; text-align:center; }
-.witness div { border-bottom:1px dashed #000; margin-top:6px; }
 </style>
 </head>
 <body>
-<div class="container">
-<h1>เว็บแอพระบบรับซื้อ / รับฝาก</h1>
-
-<!-- หน้าเลือกการทำงาน -->
-<div class="section">
-<h2>1. ขออนุมัติ</h2>
-<label>ถ่ายรูปสินค้า (5-6 รูป)</label>
-<input type="file" multiple accept="image/*" />
-
-<label>ประเภทสินค้า</label><input />
-<label>รุ่น</label><input />
-<label>ยี่ห้อ</label><input />
-<label>ตำหนิ</label><textarea></textarea>
-
-<label>เลือกรูปแบบ</label>
-<select id="approveType">
-<option value="">-- เลือก --</option>
-<option value="buy">รับซื้อ</option>
-<option value="pawn">ฝาก</option>
-</select>
-
-<label>อุปกรณ์ที่มี (เลือกได้หลายอัน)</label>
-<div>
-<label><input type="checkbox"> หัวโดด</label>
-<label><input type="checkbox"> ครบกล่อง</label>
-<label><input type="checkbox"> สาย</label>
-<label><input type="checkbox"> กระเป๋า</label>
-<label><input type="checkbox"> กล่อง</label>
-<label><input type="checkbox"> เครื่อง</label>
-<label><input type="checkbox"> รีโมท</label>
-<label><input type="checkbox"> เพิ่มเติม</label>
-</div>
-
-<label>ราคาที่อนุมัติ</label><input type="number" />
-
-<button onclick="approve()">ส่งขออนุมัติ</button>
-<p class="status" id="approveStatus">สถานะ: รออนุมัติ</p>
-</div>
-
-<!-- รับซื้อ -->
-<div class="section hidden" id="buySection">
-<h2>1. รับซื้อ</h2>
-<label>วันที่ทำการซื้อขาย</label><input type="date" />
-<label>เลขที่บิล</label><input id="buyBill" readonly />
-<label>ชื่อ-นามสกุล</label><input />
-<label>ประเภทสินค้า</label><input />
-<label>รุ่น</label><input />
-<label>ยี่ห้อ</label><input />
-<label>Serial Number</label><input />
-<label>IMEI / Part</label><input />
-<label>สุขภาพแบต</label><input />
-<label>ตำหนิ / บันทึก</label><textarea></textarea>
-<label>รูปถ่ายจริง 6 รูป</label><input type="file" multiple accept="image/*" />
-<button onclick="window.print()">พิมพ์ใบเสร็จ</button>
-</div>
-
-<!-- ฝาก -->
-<div class="section hidden" id="pawnSection">
-<h2>2. ฝาก</h2>
-<label>เลขที่บิล</label><input id="pawnBill" readonly />
-<label>ชื่อ-นามสกุล</label><input />
-<label>ที่อยู่</label><textarea></textarea>
-<label>เบอร์โทร</label><input />
-<label>ประเภทสินค้า</label><input />
-<label>รุ่น</label><input />
-<label>ยี่ห้อ</label><input />
-<label>Serial Number</label><input />
-<label>IMEI / Part</label><input />
-<label>สุขภาพแบต</label><input />
-<label>ตำหนิ / บันทึก</label><textarea></textarea>
-<label>รูปถ่ายจริง 6 รูป</label><input type="file" multiple accept="image/*" />
-<label>ราคาขายฝาก</label><input type="number" id="pawnPrice" />
-<label>ระยะเวลา</label>
-<select id="term" onchange="calcFee()">
-<option value="">-- เลือก --</option>
-<option value="20">20 วัน (7%)</option>
-<option value="15">15 วัน (10%)</option>
-</select>
-<p>ค่าบริการ: <span id="fee">0</span> บาท</p>
-<p>รวมยอดชำระ: <span id="total">0</span> บาท</p>
-<label>วันที่ปัจจุบัน</label><input type="date" id="startDate" readonly />
-<p>วันครบกำหนด: <span id="dueDate"></span></p>
-<button onclick="printContract()">พิมพ์สัญญา</button>
-<button onclick="window.print()">พิมพ์ใบนัดชำระ</button>
-</div>
-
-<!-- เพิ่มเงินต้น -->
-<div class="section">
-<h2>4. เพิ่มเงินต้น</h2>
-<label>ค้นหาด้วยชื่อ</label><input />
-<label>ค้นหาด้วยเลขที่บิล</label><input />
-<label>เลือกสัญญา</label><select><option>-- เลือก --</option></select>
-<label>ขออนุมัติเพิ่มวงเงิน</label><input type="number" />
-<label>บันทึกเพิ่มเติม</label><textarea></textarea>
-<button>ส่งขออนุมัติ</button>
-</div>
-
-<!-- หน้าเอกสารสัญญาฝาก A4 (ผูกข้อมูลจริง) -->
-<div class="a4 hidden" id="contractPage">
-  <div class="header">
-    <div class="logo">โลโก้ร้าน</div>
-    <div class="top-right">
-      เลขที่สัญญา: <span class="dotted" id="c_bill"></span><br>
-      วันที่ทำสัญญา: <span class="dotted" id="c_date"></span>
-    </div>
+<div class="page">
+  <img src="logo.png" alt="สัญญาลักร้าน" style="position:absolute;top:20px;left:20px;width:120px;">
+  <h2 style="text-align:center;">ใบรับซื้อขายฝาก</h2>
+  <div class="right">
+    เลขที่ .......................<br>
+    ขายฝากวันที่ ..............
   </div>
-
-  <div class="title">ใบรับซื้อขายฝาก</div>
-
-  <p class="section-title">ข้อมูลร้านรับฝาก</p>
-  ชื่อร้าน <span class="dotted" style="width:300px"></span><br>
-  ที่อยู่ <span class="dotted" style="width:400px"></span><br>
-  โทรศัพท์ <span class="dotted"></span> แฟกซ์ <span class="dotted"></span>
-
-  <p class="section-title">ข้อมูลผู้ขายฝาก</p>
-  ชื่อ–นามสกุล <span class="dotted" style="width:300px" id="c_name"></span><br>
-  เลขบัตรประชาชน <span class="dotted" style="width:300px"></span><br>
-  ที่อยู่ตามบัตร <span class="dotted" style="width:450px" id="c_address"></span>
-
-  <p class="section-title">รายละเอียดทรัพย์สินที่นำมาฝาก</p>
-  ประเภทสินค้า <span class="dotted" id="c_type"></span> ยี่ห้อ <span class="dotted" id="c_brand"></span> รุ่น <span class="dotted" id="c_model"></span><br>
-  Serial / IMEI / Part <span class="dotted" style="width:300px"></span><br>
-  สภาพสินค้า <span class="dotted" style="width:400px"></span><br>
-  อุปกรณ์ที่ได้รับ <span class="dotted" style="width:400px"></span>
-
-  <p class="section-title">รายละเอียดการทำสัญญาฝาก</p>
-  จำนวนเงินที่รับฝาก <span class="dotted" id="c_price"></span> บาท ( <span class="dotted" style="width:300px"></span> )<br>
-  กำหนดวันไถ่ถอน <span class="dotted" id="c_due"></span><br>
-  ค่าบริการ <span class="dotted"></span> บาท รวมยอดชำระ <span class="dotted"></span> บาท
-
-  <p class="section-title">เงื่อนไขการบริการ</p>
-  <ol style="font-size:12pt; line-height:1.6; padding-left:20px">
-    <li>หากพ้นกำหนดวันซื้อคืนข้างต้น ถือว่าผู้ขายฝากสละสิทธิ์ สินค้าถือเป็นกรรมสิทธิ์ของทางร้านโดยชอบธรรม และไม่ต้องบอกกล่าวให้ผู้ขายฝากรับทราบ</li>
-    <li>ใบขายฝากนี้ ผู้ขายฝากต้องรักษาให้ดีอย่าให้หาย ถ้ามีข้อผิดพลาดใดๆ เกิดขึ้น ทางร้านจะไม่รับผิดชอบใดๆ ทั้งสิ้น หากใบขายฝากหาย ผู้ขายฝากจะรับคืนสินค้าไม่ได้ นอกเสียจากมีหลักฐานยืนยันการเป็นเจ้าของอย่างถูกต้องตามกฎหมายเท่านั้น</li>
-    <li>ผู้ขายฝากต้องนำบัตรประจำตัวประชาชนหรือสำเนามาซื้อสินค้าที่ขายฝากไว้คืนด้วยทุกครั้ง</li>
-  </ol>
-
-  <p class="section-title">หมายเหตุ</p>
-  <p style="font-size:12pt; line-height:1.5">
-    กรณีสินค้าสูญหายหรือสูญเสีย ซึ่งพิสูจน์ได้ว่าถูกโจรกรรมหรือเนื่องมาจากภัยธรรมชาติ ทางร้านไม่ต้องชดใช้หรือรับผิดชอบใดๆ ทั้งสิ้น
-  </p>
-
-  <div class="signature">
-      (ผู้ขายฝาก)
-    </div>
-    <div>
-      <div class="dotted" style="width:100%"></div>
-      (ผู้รับฝาก)
-    </div>
-  </div>
-
-  <p class="section-title">พยาน</p>
-  <div class="witness">
-    <div></div><div></div><div></div><div></div>
-  </div>
-
-  <div class="qr">
-    QR Code<br>
-    สำหรับตรวจสอบสัญญา / ชำระเงิน
-  </div>
+  <p><strong>เสี่ยเปี๊ยบรับฝาก ริมน้ำฯ</strong><br>
+  446/4-5 ม.ธาตุเชิงชุม ต.ธาตุเชิงชุม อ.เมืองสกลนคร จ.สกลนคร<br>
+  โทรศัพท์ 061-210-0700</p>
+  <p>ข้าพเจ้า ........................................ เลขบัตรประชาชน ...........................</p>
+  <p>ที่อยู่ .................................................................................................</p>
+  <p>ได้นำสินค้า ยี่ห้อ ............. รุ่น ............. Model .............</p>
+  <p>Serial/IMEI .....................................................................................</p>
+  <p>สภาพสินค้า ....................................................................................</p>
+  <p>ขายฝากให้ร้าน เสี่ยเปี๊ยบรับฝาก ริมน้ำฯ</p>
+  <p>เป็นเงิน ........................ บาท อัตราค่าบริการ ........................ บาท</p>
+  <p>ได้รับเงินสุทธิ ........................ บาท</p>
+  <p>ครบกำหนดวัน .................... หากไม่ไถ่ถอนให้ถือว่าสละสิทธิ์</p>
+  <h3>เงื่อนไขการรับบริการ</h3>
+  <p>1. หากพ้นกำหนดวันไถ่ถอนจะถือว่าสละสิทธิ์<br>
+     2. ของต้องไม่ผิดกฎหมาย หากตรวจพบถือว่าสัญญาเป็นโมฆะ<br>
+     3. ผู้ฝากต้องปฏิบัติตามข้อกำหนดของร้าน<br></p><div style="position:absolute;right:20px;bottom:20px;text-align:right;">
+  ลงชื่อ ................................ ผู้ฝาก<br><br>
+  ลงชื่อ ................................ ผู้รับฝาก
 </div>
 
+  <div class="idbox" id="preview">รูปบัตรประชาชน</div>
+  <label class="uplabel" for="upload">อัปโหลดบัตรประชาชน</label>
+  <input id="upload" type="file" accept="image/*">
+</div>
 <script>
-function genBill() {
- return 'B' + Date.now();
-}
-function approve(){
- const today = new Date().toISOString().split('T')[0];
- document.getElementById('startDate').value = today;
- document.getElementById('approveStatus').innerText='สถานะ: อนุมัติแล้ว';
- const type=document.getElementById('approveType').value;
- if(type==='buy'){
-  document.getElementById('buySection').classList.remove('hidden');
-  document.getElementById('buyBill').value=genBill();
- }
- if(type==='pawn'){
-  document.getElementById('pawnSection').classList.remove('hidden');
-  document.getElementById('pawnBill').value=genBill();
- }
-}
-function calcFee(){
- const startInput = document.getElementById('startDate');
- if(!startInput.value){
-   startInput.value = new Date().toISOString().split('T')[0];
- }
- const price=Number(document.getElementById('pawnPrice').value||0);
- const term=document.getElementById('term').value;
- let rate=0;
- if(term==20) rate=0.07;
- if(term==15) rate=0.10;
- const fee=price*rate;
- document.getElementById('fee').innerText=fee.toFixed(2);
- document.getElementById('total').innerText=(price+fee).toFixed(2);
- const start=new Date(document.getElementById('startDate').value);
- if(start && term){
-  const due=new Date(start);
-  due.setDate(due.getDate()+Number(term));
-  document.getElementById('dueDate').innerText=due.toLocaleDateString('th-TH');
- }
-}
-function fillContract(){
-  document.getElementById('c_bill').innerText = document.getElementById('pawnBill').value;
-  document.getElementById('c_date').innerText = new Date().toLocaleDateString('th-TH');
-  document.getElementById('c_name').innerText = document.querySelector('#pawnSection input:nth-of-type(2)').value;
-  document.getElementById('c_address').innerText = document.querySelector('#pawnSection textarea').value;
-  document.getElementById('c_type').innerText = document.querySelector('#pawnSection input:nth-of-type(4)').value;
-  document.getElementById('c_brand').innerText = document.querySelector('#pawnSection input:nth-of-type(6)').value;
-  document.getElementById('c_model').innerText = document.querySelector('#pawnSection input:nth-of-type(5)').value;
-  document.getElementById('c_price').innerText = document.getElementById('pawnPrice').value;
-  document.getElementById('c_due').innerText = document.getElementById('dueDate').innerText;
-}
-
-function printContract(){
-  const contract = document.getElementById('contractPage');
-  fillContract();
-  contract.classList.remove('hidden');
-  contract.scrollIntoView();
-  setTimeout(() => {
-    window.print();
-    contract.classList.add('hidden');
-  }, 100);
-}
+const up=document.getElementById('upload');
+const pv=document.getElementById('preview');
+up.addEventListener('change',e=>{let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=_=>pv.innerHTML=`<img src="${r.result}">`;r.readAsDataURL(f);});
 </script>
 </body>
 </html>
