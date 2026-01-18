@@ -1,95 +1,779 @@
 <!DOCTYPE html>
+<!-- ================= SQL สำหรับตาราง approvals (Supabase / PostgreSQL) =================
+CREATE TABLE IF NOT EXISTS public.approvals (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  request_no text NOT NULL UNIQUE,
+  product_type text,
+  brand text,
+  model text,
+  defect text,
+  transaction_type text CHECK (transaction_type IN ('รับซื้อ','ฝาก')),
+  status text DEFAULT 'pending' CHECK (status IN ('pending','accepted','rejected','completed')),
+  approved_price numeric,
+  product_image_urls jsonb, -- เก็บ URL รูปสินค้า (5-6 รูป) ตอนขออนุมัติ
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- แนะนำ index
+CREATE INDEX IF NOT EXISTS idx_approvals_status ON public.approvals(status);
+CREATE INDEX IF NOT EXISTS idx_approvals_created_at ON public.approvals(created_at DESC);
+
+-- Trigger อัปเดต updated_at อัตโนมัติ
+CREATE OR REPLACE FUNCTION public.set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_approvals_updated_at ON public.approvals;
+CREATE TRIGGER trg_approvals_updated_at
+BEFORE UPDATE ON public.approvals
+FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+-- ================================================================================ -->
+
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>ใบรับซื้อขายฝาก + OCR</title>
-<script src="https://unpkg.com/tesseract.js@5/dist/tesseract.min.js"></script>
-<style>
-  body{font-family:"TH Sarabun New",Arial,sans-serif;font-size:18px;}
-  .page{width:850px;margin:auto;border:1px solid #000;padding:30px;position:relative;}
-  .right{position:absolute;top:40px;right:20px;text-align:right;}
-  .idbox{position:absolute;top:50%;right:20px;transform:translateY(-50%);width:260px;height:180px;border:1px dashed #333;display:flex;align-items:center;justify-content:center;overflow:hidden;text-align:center;}
-  .idbox img{width:100%;height:100%;object-fit:cover;}
-  input[type=file]{display:none;}
-  .uplabel{font-size:14px;color:#007bff;text-decoration:underline;cursor:pointer;margin-top:5px;}
-  @media print{.uplabel,input[type=file]{display:none;}.idbox{border:1px solid #000;}}
-</style>
+  <meta charset="UTF-8" />
+  <title>ระบบรับซื้อ / รับฝาก</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body { font-family: Tahoma, sans-serif; background:#f5f5f5; margin:0; }
+    header { background:#222; color:#fff; padding:15px; }
+    nav button { margin:5px; padding:10px 15px; }
+    section { display:none; background:#fff; margin:15px; padding:15px; border-radius:6px; }
+    section.active { display:block; }
+    h2 { border-bottom:1px solid #ccc; padding-bottom:5px; }
+    label { display:block; margin-top:10px; }
+    input, select, textarea { width:100%; padding:6px; margin-top:4px; }
+    .row { display:flex; gap:10px; }
+    .row > div { flex:1; }
+    .checkbox-group label { display:inline-block; margin-right:10px; }
+    .actions { margin-top:15px; }
+    .actions button { padding:8px 15px; }
+    table { width:100%; border-collapse:collapse; margin-top:10px; }
+    th, td { border:1px solid #ccc; padding:6px; text-align:left; }
+    .status-wait { color:orange; }
+    .status-ok { color:green; }
+
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:999}
+    .modal{background:#fff;border-radius:8px;max-width:900px;width:95%;padding:20px;text-align:left;box-shadow:0 10px 30px rgba(0,0,0,.2)}
+    .img-thumb{width:60px;height:60px;object-fit:cover;border-radius:4px;margin:2px;cursor:pointer;border:1px solid #ccc}
+    .img-viewer{display:flex;flex-wrap:wrap;gap:10px}
+    .img-viewer img{max-width:180px;border-radius:6px;border:1px solid #ccc}
+    .modal h3{margin-top:0}
+    .modal button{margin-top:15px;padding:8px 18px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
 <body>
-<div class="page">
-  <img src="logo.png" style="position:absolute;top:20px;left:20px;width:120px;">
-  <h2 style="text-align:center;">ใบรับซื้อขายฝาก</h2>
-  <div class="right">เลขที่ <span id="doc_no">............</span><br>ขายฝากวันที่ <span id="doc_date">............</span></div>
+<header>
+  <h1>ระบบรับซื้อ / รับฝาก (Prototype)</h1>
+</header>
+<nav style="padding:10px;">
+  <button onclick="show('approve')">ขออนุมัติ</button>
+</nav>
 
-  <p>ข้าพเจ้า <span id="fname">........................................</span> เลขบัตรประชาชน <span id="cid">...........................</span></p>
-  <p>วันเกิด <span id="dob">........................................</span></p>
-  <p>วันออกบัตร <span id="issue">........................................</span> วันหมดอายุ <span id="expire">........................................</span></p>
-  <p>ที่อยู่ <span id="addr">.................................................................................</span></p>
-  <p>อำเภอ/เขต <span id="district">........................................</span> จังหวัด <span id="province">........................................</span></p>
+<section id="approve" class="active">
+  <h2>1. ขออนุมัติซื้อขาด / รับฝาก</h2>
 
-  <h3>สินค้าที่ขายฝาก</h3>
-  <p>ยี่ห้อ ............. รุ่น ............. Model .............</p>
-  <p>Serial/IMEI .....................................................................................</p>
-  <p>สภาพสินค้า ....................................................................................</p>
+  <label>ประเภทสินค้า</label>
+  <select id="productType">
+    <option value="">-- เลือกประเภทสินค้า --</option>
+    <option value="โทรศัพท์มือถือ">โทรศัพท์มือถือ</option>
+    <option value="กล้อง">กล้อง</option>
+    <option value="โน้ตบุ๊ก">โน้ตบุ๊ก</option>
+    <option value="แท็บเล็ต">แท็บเล็ต</option>
+    <option value="นาฬิกา">นาฬิกา</option>
+    <option value="อื่น ๆ">อื่น ๆ</option>
+  </select>
 
-  <h3>เงื่อนไขการรับบริการ</h3>
-  <p>1. หากพ้นกำหนดวันซื้อคืนถือว่าสละสิทธิ์ และสินค้าเป็นกรรมสิทธิ์ของร้าน<br>
-     2. ผู้ขายฝากต้องเก็บใบนี้ ถ้าหายร้านไม่รับผิดชอบ<br>
-     3. ต้องนำบัตรประชาชนทุกครั้งเมื่อมาซื้อคืน</p>
+  <label>ถ่ายรูปสินค้า (5-6 รูป)</label>
+  <input type="file" id="approveImages" multiple accept="image/*" />
 
-  <div style="position:absolute;right:20px;bottom:20px;text-align:right;">
-    ลงชื่อ ................................ ผู้ฝาก<br><br>
-    ลงชื่อ ................................ ผู้รับฝาก
+  <div class="row">
+    <div><label>ยี่ห้อ</label><input id="brand" /></div>
+    <div><label>รุ่น</label><input id="model" /></div>
   </div>
 
-  <div class="idbox" id="preview">รูปบัตรประชาชน</div>
-  <label class="uplabel" for="upload">อัปโหลดบัตรประชาชน</label>
-  <input id="upload" type="file" accept="image/*">
+  <label>อุปกรณ์ที่มี (เลือกได้หลายรายการ)</label>
+  <div class="checkbox-group" id="accessories">
+    <label><input type="checkbox" value="หัวโดด"> หัวโดด</label>
+    <label><input type="checkbox" value="ครบกล่อง"> ครบกล่อง</label>
+    <label><input type="checkbox" value="สาย"> สาย</label>
+    <label><input type="checkbox" value="กระเป๋า"> กระเป๋า</label>
+    <label><input type="checkbox" value="กล่อง"> กล่อง</label>
+    <label><input type="checkbox" value="เครื่อง"> เครื่อง</label>
+    <label><input type="checkbox" value="รีโมท"> รีโมท</label>
+    <label><input type="checkbox" value="อื่น ๆ"> อื่น ๆ</label>
+  </div>
+
+  <label>ตำหนิ / รายละเอียดเพิ่มเติม</label>
+  <textarea id="defect"></textarea>
+
+  <label>รับซื้อ หรือ รับฝาก</label>
+  <select id="transactionType">
+    <option value="รับซื้อ">รับซื้อ</option>
+    <option value="ฝาก">ฝาก</option>
+  </select>
+
+  <div class="actions">
+    <button onclick="submitApprove()">ส่งขออนุมัติ</button>
+  </div>
+
+  <hr style="margin:20px 0" />
+  <h3>ประวัติการขออนุมัติ
+<p style="color:#555">แสดงรูปสินค้าที่แนบมากับคำขอ</p></h3>
+  <table>
+    <thead>
+      <tr>
+        <th>เลขคำขอ</th>
+        <th>วันที่ / เวลา</th>
+        <th>ประเภท</th>
+        <th>ยี่ห้อ</th>
+        <th>รุ่น</th>
+        <th>อุปกรณ์ที่มี</th>
+        <th>รูปแบบ</th>
+        <th>สถานะ</th>
+<th>รูปสินค้า</th>
+        <th>ราคาอนุมัติ</th>
+        <th>ดำเนินการ</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody">
+      <tr><td colspan="8" style="text-align:center">กำลังโหลดข้อมูล...</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<div id="modalBg" class="modal-backdrop">
+  <div class="modal">
+    <button onclick="closeModal()" style="float:right;background:#eee;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer">✕</button>
+    <h3 id="modalTitle"></h3>
+    <div id="modalMsg"></div>
+    <div style="text-align:right"><button onclick="closeModal()">ปิด</button></div>
+  </div>
 </div>
 
 <script>
-const up=document.getElementById('upload');
-const pv=document.getElementById('preview');
-up.addEventListener('change',async e=>{
-  let f=e.target.files[0];if(!f)return;
-  let r=new FileReader();
-  r.onload=async _=>{
-    pv.innerHTML=`<img src="${r.result}">`;
-    try{
-      const {data:{text}}=await Tesseract.recognize(r.result,'tha+eng');
-      autoFill(text);
-    }catch(err){console.error('OCR fail',err);}
-  };
-  r.readAsDataURL(f);
-});
+const SUPABASE_URL = 'https://grsooqzyaykpwobwsxof.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_b6VByFExyIdZPwdmFUkMrw_E8E4grCZ';
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-function autoFill(t){
-  t=t.replace(/\s+/g,' ');
-
-  let id=t.match(/(\d{13})/);
-  if(id)cid.textContent=id[1];
-
-  let full=t.match(/(?:ชื่อ|Name) ?([ก-๙A-Za-z]+) ?([ก-๙A-Za-z]+)?/);
-  if(full)fname.textContent=((full[1]||'')+' '+(full[2]||'')).trim();
-
-  let addrMatch=t.match(/(?:ที่อยู่|Address)[: ]+([ก-๙A-Za-z0-9\/\- .,]+)/);
-  if(addrMatch)addr.textContent=addrMatch[1].trim();
-
-  let dobMatch=t.match(/(?:เกิด|Birth|DOB)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
-  if(dobMatch)dob.textContent=dobMatch[1];
-
-  let issueMatch=t.match(/(?:ออกบัตร|Issued)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
-  if(issueMatch)issue.textContent=issueMatch[1];
-
-  let expMatch=t.match(/(?:หมดอายุ|Expiry|EXP)[^0-9]*(\d{2,4}[\/\-]\d{1,2}[\/\-]\d{1,2})/);
-  if(expMatch)expire.textContent=expMatch[1];
-
-  let prov=t.match(/จังหวัด ?([ก-๙]+)/);
-  if(prov)province.textContent=prov[1];
-
-  let dist=t.match(/(?:อำเภอ|เขต) ?([ก-๙]+)/);
-  if(dist)district.textContent=dist[1];
+function show(id){
+  document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
 }
+
+async function submitApprove(){
+  const productType = document.getElementById('productType').value;
+  const brand = document.getElementById('brand').value;
+  const model = document.getElementById('model').value;
+  const defect = document.getElementById('defect').value;
+  const transactionType = document.getElementById('transactionType').value;
+
+  // ===== อุปกรณ์ที่เลือก =====
+  const accessories = Array.from(document.querySelectorAll('#accessories input:checked')).map(i=>i.value);
+
+  if(!productType || !transactionType){
+    alert('กรุณากรอกข้อมูลให้ครบ');
+    return;
+  }
+
+  // ===== อัปโหลดรูปสินค้า (ขออนุมัติ) =====
+  const imageUrls = [];
+  const imagesInput = document.getElementById('approveImages');
+  if(imagesInput && imagesInput.files.length > 0){
+    const files = Array.from(imagesInput.files).slice(0,6);
+    for(const file of files){
+      const safeName = file.name.replace(/[^a-zA-Z0-9.]/g,'_');
+      const path = `approvals/${Date.now()}-${safeName}`;
+      const { error: imgErr } = await sbClient.storage
+        .from('product-images')
+        .upload(path, file, { upsert:false });
+      if(imgErr){ alert('อัปโหลดรูปสินค้าไม่สำเร็จ'); return; }
+      const url = sbClient.storage
+        .from('product-images')
+        .getPublicUrl(path).data.publicUrl;
+      imageUrls.push(url);
+    }
+  }
+
+  const data = {
+    accessories,
+    request_no: genBill('REQ'),
+    product_type: productType,
+    brand,
+    model,
+    defect,
+    transaction_type: transactionType,
+    status: 'pending',
+    product_image_urls: imageUrls
+  };
+
+  const { error } = await sbClient.from('approvals').insert([data]);
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  // ===== แสดง popup สำเร็จ =====
+  openModal('ส่งคำขออนุมัติสำเร็จ', 'ระบบได้รับคำขออนุมัติเรียบร้อยแล้ว');
+
+  // ===== เคลียร์ข้อมูลฟอร์ม =====
+  document.getElementById('productType').value = '';
+  document.getElementById('brand').value = '';
+  document.getElementById('model').value = '';
+  document.getElementById('defect').value = '';
+  document.getElementById('transactionType').value = 'รับซื้อ';
+  document.getElementById('approveImages').value = '';
+
+  // เคลียร์อุปกรณ์ที่เลือก (checkbox)
+  document.querySelectorAll('#accessories input[type="checkbox"]').forEach(cb => cb.checked = false);
+
+  loadHistory();
+}
+
+function genBill(prefix='REQ'){ return prefix+'-'+Date.now(); }
+
+function openModal(title, msg){
+  modalTitle.innerText = title;
+  modalMsg.innerHTML = msg;
+  modalBg.style.display = 'flex';
+}
+function closeModal(){ modalBg.style.display = 'none'; modalTitle.innerText=''; modalMsg.innerHTML=''; }
+
+function viewImages(requestNo, images){
+  if(!images || images.length===0){
+    openModal('รูปสินค้า','ไม่มีรูปแนบ');
+    return;
+  }
+  openModal('รูปสินค้า - '+requestNo, `
+    <div class="img-viewer">
+      ${images.map(u=>`<a href="${u}" target="_blank"><img src="${u}" /></a>`).join('')}
+    </div>
+    <p style="color:#666;font-size:13px">คลิกรูปเพื่อเปิดดูขนาดเต็ม</p>
+  `);
+}
+
+async function loadHistory(){
+  const { data } = await sbClient.from('approvals').select('*').order('created_at',{ascending:false});
+  const body = document.getElementById('historyBody');
+  if(!data || data.length===0){
+    body.innerHTML='<tr><td colspan="8" style="text-align:center">ยังไม่มีข้อมูล</td></tr>';
+    return;
+  }
+  body.innerHTML = data.map(r => {
+  const imgs = Array.isArray(r.product_image_urls) && r.product_image_urls.length > 0
+    ? `<button onclick='viewImages("${r.request_no}", ${JSON.stringify(r.product_image_urls)})'>ดูรูป (${r.product_image_urls.length})</button>`
+    : '<span style="color:#999">ไม่มีรูป</span>';
+
+  return `
+    <tr>
+      <td>${r.request_no}</td>
+      <td>${new Date(r.created_at).toLocaleString('th-TH')}</td>
+      <td>${r.product_type || ''}</td>
+      <td>${r.brand || ''}</td>
+      <td>${r.model || ''}</td>
+      <td>${Array.isArray(r.accessories) && r.accessories.length ? r.accessories.join(', ') : '-'}</td>
+      <td>${r.transaction_type || ''}</td>
+      <td class="${r.status==='pending'?'status-wait':'status-ok'}">${r.status}</td>
+      <td>${imgs}</td>
+      <td>${r.approved_price ?? '-'}</td>
+      <td>
+        ${r.status==='accepted' && r.approved_price
+          ? `<button onclick="proceed('${r.id}','${r.transaction_type}')">ดำเนินการ${r.transaction_type}</button>`
+          : r.status==='completed'
+            ? (r.transaction_type==='ฝาก'
+                ? `<button onclick="viewPawnContract('${r.id}')">ดูใบสัญญา</button>`
+                : `<button onclick="viewReceipt('${r.id}')">ดูใบเสร็จ</button>`)
+            : '-' }
+      </td>
+    </tr>`;
+}).join('');
+}
+
+// FIXED: proceed ไม่มี else เกิน
+let currentApprovalId = null;
+
+async function viewPawnContract(approvalId){
+  // โหลดข้อมูล approval เพื่อทำสัญญาขายฝาก PDF
+  const { data: approval, error } = await sbClient
+    .from('approvals')
+    .select('*')
+    .eq('id', approvalId)
+    .single();
+
+  if(error || !approval){
+    alert('ไม่พบข้อมูลสัญญาขายฝาก');
+    return;
+  }
+
+  openModal('ใบสัญญาขายฝาก (PDF A4)', `
+    <div style="font-family:Tahoma, sans-serif;font-size:14px">
+      <h2 style="text-align:center">ใบรับซื้อขายฝาก</h2>
+      <p style="text-align:center">(สัญญาขายฝากตามกฎหมาย)</p>
+      <hr>
+      <p><b>เลขที่สัญญา:</b> ${approval.request_no}</p>
+      <p><b>วันที่ทำสัญญา:</b> ${new Date(approval.created_at).toLocaleDateString('th-TH')}</p>
+
+      <p><b>ข้อมูลผู้ขายฝาก</b><br>
+      ชื่อ-นามสกุล: _______________________________<br>
+      เลขบัตรประชาชน: ____________________________<br>
+      ที่อยู่: _____________________________________</p>
+
+      <p><b>รายละเอียดทรัพย์สิน</b><br>
+      ประเภทสินค้า: ${approval.product_type || '-'}<br>
+      ยี่ห้อ: ${approval.brand || '-'}<br>
+      รุ่น: ${approval.model || '-'}<br>
+      รายละเอียด/ตำหนิ: ${approval.defect || '-'}</p>
+
+      <p><b>เงื่อนไขการขายฝาก</b><br>
+      จำนวนเงินรับฝาก: __________ บาท<br>
+      กำหนดวันไถ่ถอน: ____ / ____ / ______<br>
+      ดอกเบี้ย/ค่าบริการ: __________ บาท</p>
+
+      <p><b>ข้อสัญญา</b><br>
+      ผู้ขายฝากรับรองว่าทรัพย์สินเป็นกรรมสิทธิ์โดยชอบด้วยกฎหมาย หากไม่มาไถ่ถอนภายในกำหนด ทรัพย์สินตกเป็นของผู้รับฝากทันที</p>
+
+      <br>
+      <table style="width:100%;margin-top:30px">
+        <tr>
+          <td>ผู้ขายฝาก<br><br>___________________________</td>
+          <td>ผู้รับฝาก<br><br>___________________________</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding-top:30px">พยาน<br>1. ___________________________<br>2. ___________________________</td>
+        </tr>
+      </table>
+
+      <div style="text-align:right;margin-top:20px">
+        <button onclick="exportPawnPDF('${approval.id}')">ดาวน์โหลด PDF A4</button>
+      </div>
+    </div>
+  `);
+}
+
+function exportPawnPDF(approvalId){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p','mm','a4');
+
+  // ===== ข้อมูลร้าน (แก้ไขได้ตามจริง) =====
+  const shop = {
+    name: 'ร้าน เสี่ยเป้อรับฝาก',
+    address: '.................................................................',
+    phone: '................................',
+    fax: '-',
+  };
+
+  // ===== ส่วนหัวเอกสาร =====
+  doc.setFontSize(16);
+  doc.text('ใบรับซื้อขายฝาก', 105, 20, { align: 'center' });
+  doc.setFontSize(12);
+  doc.text('(สัญญาขายฝาก)', 105, 28, { align: 'center' });
+
+  // โลโก้ร้าน (placeholder)
+  doc.setDrawColor(0);
+  doc.rect(20, 12, 25, 15);
+  doc.setFontSize(8);
+  doc.text('LOGO', 32.5, 20, { align: 'center' });
+
+  // ข้อมูลมุมขวาบน
+  doc.setFontSize(10);
+  doc.text(`เลขที่สัญญา: ${approvalId}`, 150, 18);
+  doc.text(`วันที่ทำสัญญา: ${new Date().toLocaleDateString('th-TH')}`, 150, 24);
+
+  // ===== ข้อมูลร้าน =====
+  let y = 40;
+  doc.setFontSize(11);
+  doc.text(shop.name, 20, y); y+=6;
+  doc.text(shop.address, 20, y); y+=6;
+  doc.text(`${shop.phone}   แฟกซ์: ${shop.fax}`, 20, y); y+=10;
+
+  // ===== ข้อมูลผู้ขายฝาก =====
+  doc.text('ข้อมูลผู้ขายฝาก', 20, y); y+=7;
+  doc.text('ชื่อ-นามสกุล ....................................................................................', 25, y); y+=6;
+  doc.text('เลขบัตรประชาชน ...........................................................................', 25, y); y+=6;
+  doc.text('ที่อยู่ ...................................................................................................', 25, y); y+=10;
+
+  // ===== รายละเอียดทรัพย์สิน =====
+  doc.text('รายละเอียดทรัพย์สิน', 20, y); y+=7;
+  doc.text('ประเภทสินค้า / ยี่ห้อ / รุ่น ..................................................................', 25, y); y+=6;
+  doc.text('Serial / IMEI / Part ........................................................................', 25, y); y+=6;
+  doc.text('สภาพสินค้า / อุปกรณ์ที่ได้รับ ............................................................', 25, y); y+=10;
+
+  // ===== รายละเอียดการทำสัญญา =====
+  doc.text('รายละเอียดการทำสัญญาฝาก', 20, y); y+=7;
+  doc.text('จำนวนเงินรับฝาก .................................................. บาท', 25, y); y+=6;
+  doc.text('กำหนดวันไถ่ถอน .....................................................', 25, y); y+=6;
+  doc.text('ดอกเบี้ย / ค่าบริการ ................................................. บาท', 25, y); y+=6;
+  doc.text('รวมยอดชำระ .......................................................... บาท', 25, y); y+=10;
+
+  // ===== ข้อสัญญา =====
+  doc.text('ข้อสัญญาและเงื่อนไข', 20, y); y+=7;
+  doc.setFontSize(10);
+  doc.text('1. หากพ้นกำหนดวันซื้อคืนข้างต้นถือว่าผู้ขายฝากสละสิทธิ์ สินค้าถือเป็นกรรมสิทธิ์ของทางร้านโดยชอบธรรม และไม่ต้องบอกกล่าวให้ผู้ขายฝากรับทราบ', 20, y, { maxWidth: 170 }); y+=10;
+  doc.text('2. ใบขายฝากนี้ผู้ขายฝากต้องรักษาให้ดี หากสูญหายทางร้านจะไม่รับผิดชอบใดๆ เว้นแต่มีหลักฐานยืนยันการเป็นเจ้าของตามกฎหมาย', 20, y, { maxWidth: 170 }); y+=10;
+  doc.text('3. ผู้ขายฝากต้องนำบัตรประจำตัวประชาชนหรือสำเนามาไถ่ถอนสินค้าทุกครั้ง', 20, y, { maxWidth: 170 }); y+=14;
+
+  // ===== ลายเซ็น (พิมพ์เอกสารแล้วลงนามภายหลัง) =====
+  doc.setFontSize(11);
+  doc.text('ลงชื่อผู้ขาย (ลงนามภายหลังการพิมพ์เอกสาร)',20,y); y+=8;
+  doc.text('ชื่อ-นามสกุล ............................................................',25,y); y+=8;
+  doc.text('ลายเซ็น ................................................................. วันที่ ........../........../..........',25,y); y+=14;
+
+  doc.text('ลงชื่อผู้ซื้อ (ลงนามภายหลังการพิมพ์เอกสาร)',20,y); y+=8;
+  doc.text('ชื่อ-นามสกุล ............................................................',25,y); y+=8;
+  doc.text('ลายเซ็น ................................................................. วันที่ ........../........../..........',25,y); y+=14;
+
+  doc.text('พยาน',20,y); y+=8;
+  doc.text('1. .....................................................   ลายเซ็น ..................................',25,y); y+=8;
+  doc.text('2. .....................................................   ลายเซ็น ..................................',25,y);
+
+  doc.save(`sale-${purchase.bill_no}.pdf`);
+}
+
+function exportReceiptPDF(approvalId){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p','mm','a4');
+
+  let y = 20;
+  doc.setFontSize(16);
+  doc.text('สัญญาซื้อขายทรัพย์สิน',105,y,{align:'center'}); y+=8;
+  doc.setFontSize(12);
+  doc.text('(ตามประมวลกฎหมายแพ่งและพาณิชย์)',105,y,{align:'center'}); y+=12;
+
+  doc.setFontSize(11);
+  doc.text(`เลขที่สัญญา: ${purchase.bill_no}`,150,20);
+  doc.text(`วันที่ทำสัญญา: ${new Date(purchase.buy_date || approval.created_at).toLocaleDateString('th-TH')}`,150,26);
+
+  doc.text('ข้อมูลผู้ขาย',20,y); y+=7;
+  doc.text(`ชื่อ-นามสกุล: ${purchase.customer_name}`,25,y); y+=6;
+  doc.text(`เลขบัตรประชาชน: ${purchase.id_card}`,25,y); y+=6;
+  doc.text(`ที่อยู่: ${purchase.address || '-'}`,25,y); y+=10;
+
+  doc.text('รายละเอียดทรัพย์สิน',20,y); y+=7;
+  doc.text(`ประเภทสินค้า: ${purchase.product_type || '-'}`,25,y); y+=6;
+  doc.text(`ยี่ห้อ / รุ่น: ${purchase.brand || '-'} / ${purchase.model || '-'}`,25,y); y+=6;
+  doc.text(`Serial / IMEI: ${purchase.serial_number || '-'} / ${purchase.imei_part || '-'}`,25,y); y+=10;
+
+  doc.text('ราคาซื้อขาย',20,y); y+=7;
+  doc.text(`ผู้ซื้อชำระเงินจำนวน ${approval.approved_price ?? '-'} บาท`,25,y); y+=6;
+  doc.text('ผู้ขายได้รับเงินครบถ้วนแล้ว',25,y); y+=12;
+
+  doc.setFontSize(10);
+  doc.text('ข้อตกลง',20,y); y+=6;
+  doc.text('1. ผู้ขายรับรองว่าทรัพย์สินเป็นกรรมสิทธิ์โดยชอบด้วยกฎหมาย ไม่เป็นทรัพย์สินโจรกรรม และไม่ติดภาระผูกพันใด ๆ',20,y,{maxWidth:170}); y+=8;
+  doc.text('2. เมื่อชำระเงินครบถ้วน กรรมสิทธิ์ในทรัพย์สินตกเป็นของผู้ซื้อทันทีตาม ป.พ.พ.',20,y,{maxWidth:170}); y+=12;
+
+  doc.setFontSize(11);
+  doc.text('ลายเซ็น (พิมพ์เอกสารแล้วลงนามภายหลัง)',20,y); y+=10;
+  doc.text('ผู้ขาย ..................................................... วันที่ ........../........../..........',25,y); y+=12;
+  doc.text('ผู้ซื้อ ..................................................... วันที่ ........../........../..........',25,y); y+=12;
+  doc.text('พยาน 1 .....................................................',25,y); y+=8;
+  doc.text('พยาน 2 .....................................................',25,y);
+
+  doc.save(`sale-${purchase.bill_no}.pdf`);
+}
+
+async function viewReceipt(approvalId){
+  // ดึงข้อมูล approvals + purchases มาใช้ร่วมกัน
+  const { data: approval, error: aErr } = await sbClient
+    .from('approvals')
+    .select('*')
+    .eq('id', approvalId)
+    .single();
+
+  const { data: purchase, error: pErr } = await sbClient
+    .from('purchases')
+    .select('*')
+    .eq('approval_id', approvalId)
+    .single();
+
+  if(aErr || !approval){
+    alert('ไม่พบข้อมูลคำขออนุมัติ');
+    return;
+  }
+  if(pErr || !purchase){
+    alert('ไม่พบข้อมูลการรับซื้อ');
+    return;
+  }
+
+  openModal('ตัวอย่างสัญญาซื้อขาย (ข้อมูลจริง)', `
+    <div style="font-family:Tahoma, sans-serif;font-size:14px">
+      <h2 style="text-align:center">สัญญาซื้อขายทรัพย์สิน</h2>
+      <p style="text-align:center">(ใบรับซื้อ)</p>
+      <div style="text-align:right">
+        เลขที่บิล: ${purchase.bill_no || '-'}<br>
+        วันที่ทำสัญญา: ${new Date(purchase.buy_date || approval.created_at).toLocaleDateString('th-TH')}
+      </div>
+      <hr>
+      <p><b>ข้อมูลผู้ขาย</b><br>
+        ชื่อ-นามสกุล: ${purchase.customer_name || '-'}<br>
+        เลขบัตรประชาชน: <span style="border-bottom:1px dashed #000; padding:0 10px">${purchase.id_card || '-'}</span><br>
+        ที่อยู่: ${purchase.address || '____________________________________________'}<br>
+        <b>รูปบัตรประชาชน:</b><br>
+        ${purchase.id_card_image_url ? `<img src="${purchase.id_card_image_url}" style="max-width:250px;border:1px solid #ccc;margin-top:5px" />` : '<i>ไม่มีรูปแนบ</i>'}
+      </p>
+
+      <p><b>รายละเอียดทรัพย์สิน</b><br>
+        ประเภทสินค้า: ${purchase.product_type || approval.product_type || '-'}<br>
+        ยี่ห้อ: ${purchase.brand || approval.brand || '-'}<br>
+        รุ่น: ${purchase.model || approval.model || '-'}<br>
+        Serial Number: ${purchase.serial_number || '-'}<br>
+        IMEI / Part: ${purchase.imei_part || '-'}<br>
+        สภาพ / หมายเหตุ: ${purchase.note || approval.defect || '-'}
+      </p>
+
+      <p><b>ข้อมูลการอนุมัติ</b><br>
+        เลขคำขอ: ${approval.request_no}<br>
+        รูปแบบ: ${approval.transaction_type}<br>
+        ราคาอนุมัติ: ${approval.approved_price ?? '-'}
+      </p>
+
+      <hr>
+      <table style="width:100%;margin-top:30px">
+        <tr>
+          <td style="width:50%">ผู้ขาย<br><br>ลงชื่อ .....................................................<br>( ${purchase.customer_name || '_________________'} )<br>วันที่ ....../....../......</td>
+          <td style="width:50%">พนักงานผู้รับซื้อ<br><br>ลงชื่อ .....................................................<br>( _________________________ )<br>วันที่ ....../....../......</td>
+        </tr>
+      </table>
+
+      <div style="text-align:right;margin-top:20px">
+        <button onclick="exportReceiptPDF('${approval.id}')">ดาวน์โหลด PDF A4</button>
+      </div>
+    </div>
+  `);
+}
+
+async function proceed(id, type){
+  currentApprovalId = id;
+
+  // ===== ดึงข้อมูลจาก approvals =====
+  const { data: approval, error } = await sbClient
+    .from('approvals')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if(error || !approval){
+    alert('ไม่พบข้อมูลคำขออนุมัติ');
+    return;
+  }
+
+  if(type === 'รับซื้อ'){
+    openModal('1.1 รับซื้อ', `
+      <label>วันที่ทำการซื้อขาย</label><input type="date" id="buyDate" value="${new Date().toISOString().slice(0,10)}" />
+      <label>เลขที่บิล</label><input id="buyBill" value="BUY-${Date.now()}" readonly />
+      <label>ชื่อ-นามสกุล</label><input id="buyName" />
+      <label>เลขบัตรประชาชน</label><input id="buyIdCard" maxlength="13" placeholder="13 หลัก" />
+      <label>แนบรูปบัตรประชาชน (ด้านหน้า)</label>
+      <input type="file" id="buyIdCardImage" accept="image/*" />
+      <label>ที่อยู่ตามบัตรประชาชน</label><textarea id="buyAddress"></textarea>
+
+      <label>ประเภทสินค้า (จากคำขออนุมัติ)</label><input id="buyType" readonly value="${approval.product_type || ''}" />
+      <label>ยี่ห้อ (จากคำขออนุมัติ)</label><input id="buyBrand" readonly value="${approval.brand || ''}" />
+      <label>รุ่น (จากคำขออนุมัติ)</label><input id="buyModel" readonly value="${approval.model || ''}" />
+      <label>Serial Number</label><input id="buySerial" />
+      <label>IMEI / Part</label><input id="buyImei" />
+      <label>ตำหนิ / บันทึกเพิ่มเติม (จากคำขออนุมัติ)</label><textarea id="buyNote" readonly>${approval.defect || ''}</textarea>
+      <label>อุปกรณ์ที่มี (จากคำขออนุมัติ)</label>
+      <textarea id="buyAccessories" readonly>${Array.isArray(approval.accessories) ? approval.accessories.join(', ') : '-'}</textarea>
+
+      <div class="actions">
+        <button onclick="savePurchase()">บันทึก</button>
+      </div>
+    `);
+
+  } else if(type === 'ฝาก'){
+    openModal('1.2 ทำสัญญาฝาก', `
+      <label>วันที่ทำสัญญา</label><input type="date" id="pawnDate" value="${new Date().toISOString().slice(0,10)}" />
+      <label>เลขที่สัญญา</label><input id="pawnBill" value="PAWN-${Date.now()}" readonly />
+      <label>ชื่อ-นามสกุลผู้ฝาก</label><input id="pawnName" />
+
+      <hr>
+      <h4>รายละเอียดทรัพย์สิน (จากคำขออนุมัติ)</h4>
+      <label>ประเภทสินค้า</label><input id="pawnProductType" readonly value="${approval.product_type || ''}" />
+      <label>ยี่ห้อ</label><input id="pawnBrand" readonly value="${approval.brand || ''}" />
+      <label>รุ่น</label><input id="pawnModel" readonly value="${approval.model || ''}" />
+      <label>Serial Number</label><input id="pawnSerial" />
+      <label>IMEI / Part</label><input id="pawnImei" />
+      <label>ตำหนิ / บันทึกเพิ่มเติม</label><textarea id="pawnNote" readonly>${approval.defect || ''}</textarea>
+      <label>อุปกรณ์ที่มี</label><textarea readonly>${Array.isArray(approval.accessories) ? approval.accessories.join(', ') : '-'}</textarea>
+
+      <div class="actions">
+        <button onclick="savePawn()">บันทึกสัญญาฝาก</button>
+      </div>
+    `);
+  } else {
+    openModal('ไม่ทราบประเภทรายการ','ไม่สามารถดำเนินการได้');
+  }
+}
+
+function autoCalcPawnFee(){
+  const amountEl = document.getElementById('pawnAmount');
+  const serviceEl = document.getElementById('pawnService');
+  const feeEl = document.getElementById('pawnServiceFee');
+  if(!amountEl || !serviceEl || !feeEl) return;
+  if(!serviceEl.value || !amountEl.value) {
+    feeEl.value = '';
+    return;
+  }
+  const [, percent] = serviceEl.value.split('|').map(Number);
+  const amount = Number(amountEl.value);
+  if(isNaN(amount)) return;
+  feeEl.value = Math.round(amount * percent / 100);
+}
+
+function autoSetPawnDueDate(){
+  const serviceEl = document.getElementById('pawnService');
+  const dateEl = document.getElementById('pawnDate');
+  const dueEl = document.getElementById('pawnRedeem');
+  if(!serviceEl || !dateEl || !dueEl) return;
+  if(!serviceEl.value) return;
+
+  const [days] = serviceEl.value.split('|').map(Number);
+  const baseDate = new Date(dateEl.value);
+  if(isNaN(baseDate)) return;
+  baseDate.setDate(baseDate.getDate() + days);
+  const yyyy = baseDate.getFullYear();
+  const mm = String(baseDate.getMonth()+1).padStart(2,'0');
+  const dd = String(baseDate.getDate()).padStart(2,'0');
+  dueEl.value = `${yyyy}-${mm}-${dd}`;
+}
+
+async function savePurchase(){
+  try{
+    const name = document.getElementById('buyName').value;
+    if(!name){ alert('กรุณากรอกชื่อผู้ขาย'); return; }
+
+    // upload id card
+    let idCardImageUrl = null;
+    const idCardInput = document.getElementById('buyIdCardImage');
+    if(idCardInput && idCardInput.files.length>0){
+      const file = idCardInput.files[0];
+      const safeName = file.name.replace(/[^a-zA-Z0-9.]/g,'_');
+      const path = `id-cards/${Date.now()}-${safeName}`;
+      const { error } = await sbClient.storage.from('documents').upload(path,file,{upsert:false});
+      if(error){ alert('อัปโหลดรูปบัตรประชาชนไม่สำเร็จ'); return; }
+      idCardImageUrl = sbClient.storage.from('documents').getPublicUrl(path).data.publicUrl;
+    }
+
+    const data = {
+      approval_id: currentApprovalId,
+      bill_no: document.getElementById('buyBill').value,
+      buy_date: document.getElementById('buyDate').value,
+      customer_name: name,
+      id_card: document.getElementById('buyIdCard').value,
+      address: document.getElementById('buyAddress').value,
+      id_card_image_url: idCardImageUrl,
+      product_type: document.getElementById('buyType').value,
+      brand: document.getElementById('buyBrand').value,
+      model: document.getElementById('buyModel').value,
+      serial_number: document.getElementById('buySerial').value,
+      imei_part: document.getElementById('buyImei').value,
+      note: document.getElementById('buyNote').value
+    };
+
+    const { error } = await sbClient.from('purchases').insert([data]);
+    if(error){ alert(error.message); return; }
+
+    await sbClient.from('approvals').update({ status:'completed' }).eq('id',currentApprovalId);
+
+    alert('✅ บันทึกการรับซื้อเรียบร้อย');
+    closeModal();
+    loadHistory();
+  }catch(e){
+    console.error(e);
+    alert('เกิดข้อผิดพลาดในการบันทึกรับซื้อ');
+  }
+}
+
+async function savePawn(){
+  try{
+    const name = document.getElementById('pawnName').value;
+    if(!name){ alert('กรุณากรอกชื่อผู้ฝาก'); return; }
+
+    // ===== อัปโหลดรูปบัตรประชาชน =====
+    let idCardImageUrl = null;
+    const idCardInput = document.getElementById('pawnIdCardImage');
+    if(idCardInput && idCardInput.files.length > 0){
+      const file = idCardInput.files[0];
+      const path = `id-cards/${Date.now()}-${file.name}`;
+
+      const { error: upErr } = await sbClient.storage
+        .from('documents')
+        .upload(path, file, { upsert:false });
+
+      if(upErr){ alert('อัปโหลดรูปบัตรประชาชนไม่สำเร็จ'); return; }
+
+      idCardImageUrl = sbClient.storage
+        .from('documents')
+        .getPublicUrl(path).data.publicUrl;
+    }
+
+    // ===== อัปโหลดรูปสินค้า (สูงสุด 6 รูป) =====
+    const imageUrls = [];
+    const imagesInput = document.getElementById('pawnImages');
+    if(imagesInput && imagesInput.files.length > 0){
+      const files = Array.from(imagesInput.files).slice(0,6);
+      for(const file of files){
+        const path = `pawn-products/${Date.now()}-${file.name}`;
+        const { error: imgErr } = await sbClient.storage
+          .from('product-images')
+          .upload(path, file, { upsert:false });
+        if(imgErr){ alert('อัปโหลดรูปสินค้าไม่สำเร็จ'); return; }
+        const url = sbClient.storage
+          .from('product-images')
+          .getPublicUrl(path).data.publicUrl;
+        imageUrls.push(url);
+      }
+    }
+
+    const data = {
+      approval_id: currentApprovalId,
+      pawn_bill_no: document.getElementById('pawnBill').value,
+      pawn_date: document.getElementById('pawnDate').value,
+      customer_name: name,
+      id_card: document.getElementById('pawnIdCard').value,
+      id_card_image_url: idCardImageUrl,
+      product_image_urls: imageUrls,
+      amount: Number(document.getElementById('pawnAmount').value),
+      service_condition: document.getElementById('pawnService').value,
+      service_fee: Number(document.getElementById('pawnServiceFee').value),
+      due_date: document.getElementById('pawnRedeem').value,
+      product_type: document.getElementById('pawnProductType').value,
+      brand: document.getElementById('pawnBrand').value,
+      model: document.getElementById('pawnModel').value,
+      serial_number: document.getElementById('pawnSerial').value,
+      imei_part: document.getElementById('pawnImei').value,
+      note: document.getElementById('pawnNote').value
+    };
+
+    const { error } = await sbClient
+      .from('pawn_transactions')
+      .insert([data]);
+
+    if(error){ alert(error.message); return; }
+
+    await sbClient.from('approvals')
+      .update({ status: 'completed' })
+      .eq('id', currentApprovalId);
+
+    alert('✅ บันทึกสัญญาฝากเรียบร้อย');
+    closeModal();
+    loadHistory();
+
+  }catch(err){
+    console.error(err);
+    alert('เกิดข้อผิดพลาดในการบันทึกสัญญาฝาก');
+  }
+}
+
+loadHistory();
 </script>
 </body>
 </html>
+
